@@ -1,0 +1,7 @@
+
+# Cargo.toml (root)
+[workspace]
+members = ["crates/mes-core",
+  "crates/mes-core",
+  "src-tauri"
+]
