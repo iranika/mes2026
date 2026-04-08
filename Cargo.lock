@@ -2291,6 +2291,7 @@ dependencies = [
 name = "mes-editor"
 version = "0.1.0"
 dependencies = [
+ "mes-core",
  "serde",
  "serde_json",
  "tauri",
