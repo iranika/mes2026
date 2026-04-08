@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/mes.schema.json",
+  "title": "MeS Medo Schema",
+  "type": "object",
+  "required": ["header","body"],
+  "properties": {
+    "header": {
+      "type": "object",
+      "properties": {
+        "raw": { "type": "string" }
+      },
+      "required": ["raw"],
+      "additionalProperties": false
+    },
+    "body": {
+      "type": "object",
+      "required": ["pieces"],
+      "properties": {
+        "pieces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dialogue": { "type": "string" },
+              "comments": { "type": "string" },
+              "sound_note": { "type": "string" },
+              "charactor": { "type": "string" },
+              "sound_position": { "type": "string" },
+              "timing": { "type": "string" }
+            },
+            "required": ["dialogue"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

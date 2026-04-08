@@ -1,0 +1,59 @@
+/* MeS 言語 - EBNF 風定義 (人間可読) */
+
+document    ::= header_opt body ; ドキュメント全体
+
+header_opt  ::= header_block header_delimiter | /* empty */
+header_block::= header_line ( NL header_line )* ; ヘッダは任意の行集合
+header_line ::= TEXT
+header_delimiter ::= "----" NL
+
+body        ::= piece ( BLANKLINE piece )* ; ブロック単位で構成
+
+piece       ::= line ( NL line )* ; 1 ブロック内の複数行
+
+line        ::= attribute_line | dialogue_line
+
+attribute_line ::= comment_line
+                 | sound_note_line
+                 | charactor_line
+                 | sound_position_line
+                 | timing_line
+
+comment_line     ::= COMMENT_PREFIX TEXT
+sound_note_line  ::= SOUND_PREFIX TEXT
+charactor_line   ::= CHAR_PREFIX TEXT
+sound_position_line ::= POSITION_PREFIX TEXT
+timing_line      ::= TIMING_PREFIX TIMESTAMP_TEXT
+
+dialogue_line ::= TEXT_NOT_PREFIX ; プレフィックスで始まらない行
+
+/* トークン定義 */
+COMMENT_PREFIX := "#" | "＃"
+SOUND_PREFIX   := "$" | "＄"
+CHAR_PREFIX    := "@" | "＠"
+POSITION_PREFIX:= "!" | "！"
+TIMING_PREFIX  := "&" | "＆"
+
+TEXT           ::= ( any-char-except-newline )*
+TEXT_NOT_PREFIX::= TEXT  ; ただし行頭が上記プレフィックスでないこと
+NL             ::= "\n"
+BLANKLINE      ::= NL ( NL )* ; 空行（1 以上）
+
+/* タイムスタンプは VTT 形式の区間を想定 (例: 00:00:01.000 --> 00:00:03.000) */
+TIMESTAMP_TEXT ::= TIMESTAMP " --> " TIMESTAMP | TEXT
+TIMESTAMP      ::= DIGIT DIGIT ":" DIGIT DIGIT ":" DIGIT DIGIT "." DIGIT DIGIT DIGIT
+DIGIT          ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+/* フラット化 (擬似ルール) */
+/*
+  フラット化: 名前付き発話の shorthand を次のように扱う
+  - "Name「発話」" という行は
+      @Name\n発話
+    のように変換され、以後通常の `@` プレフィックスの処理に従う。
+*/
+
+/* 備考:
+ - 実装は上位で改行正規化 (\r\n -> \n) を前提としている。
+ - ブロック分割はデフォルトで "\n\n" を使うが、設定で変更可能。
+ - 各属性行はそのブロック内で 0..n 回現れる可能性がある。
+*/
