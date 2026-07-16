@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-
-type PreviewMode = "json" | "vtt" | "count" | "chat";
+import { convertMes, getMesBackend, type MesBackend, type PreviewMode } from "./mesApi";
 
 const SAMPLE = `title: demo
 ----
@@ -23,23 +21,16 @@ const result = ref<string>("");
 const error = ref<string>("");
 const mode = ref<PreviewMode>("json");
 const converting = ref(false);
+const backend = ref<MesBackend>(getMesBackend());
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-const commands: Record<PreviewMode, string> = {
-  json: "mes_to_medo",
-  vtt: "mes_to_vtt",
-  count: "mes_word_count",
-  chat: "mes_to_chat",
-};
 
 async function convert() {
   error.value = "";
   converting.value = true;
+  backend.value = getMesBackend();
   try {
-    result.value = (await invoke(commands[mode.value], {
-      text: mesText.value,
-    })) as string;
+    result.value = await convertMes(mode.value, mesText.value);
   } catch (e) {
     error.value = String(e);
     result.value = "";
@@ -65,7 +56,12 @@ function resetSample() {
 <template>
   <main class="container">
     <header class="header">
-      <h1>MeS Editor</h1>
+      <div class="title-row">
+        <h1>MeS Editor</h1>
+        <span class="backend" :data-backend="backend">
+          {{ backend === "tauri" ? "Tauri" : "Browser / WASM" }}
+        </span>
+      </div>
       <p class="subtitle">MeS を Medo / VTT / ワードカウント / チャット形式へ変換</p>
     </header>
 
@@ -157,11 +153,36 @@ function resetSample() {
   margin-bottom: 1rem;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .header h1 {
   margin: 0;
   font-family: "IBM Plex Serif", Georgia, serif;
   font-size: 1.75rem;
   letter-spacing: 0.02em;
+}
+
+.backend {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1e3a5f;
+  border: 1px solid #93c5fd;
+  background: rgba(219, 234, 254, 0.7);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.backend[data-backend="tauri"] {
+  color: #14532d;
+  border-color: #86efac;
+  background: rgba(220, 252, 231, 0.75);
 }
 
 .subtitle {

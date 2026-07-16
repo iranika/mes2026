@@ -1,0 +1,15 @@
+{
+  "name": "mes-core",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "mes_core_bg.wasm",
+    "mes_core.js",
+    "mes_core.d.ts"
+  ],
+  "main": "mes_core.js",
+  "types": "mes_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
