@@ -105,6 +105,7 @@ impl Default for MeSBuilder {
 impl MeSBuilder {
     /// CamelCase legacy wrapper kept for compatibility.
     #[deprecated(note = "use `parse_raw_medo` instead")]
+    #[allow(non_snake_case)]
     pub fn parseRawMedo(self: &Self, text: &str) -> RawMedo {
         self.parse_raw_medo(text)
     }
@@ -127,7 +128,7 @@ impl MeSBuilder {
     }
     pub fn parse_to_jsonstr(self: &Self, mes_text: &str) -> String{
         let medo = self.parse(mes_text);
-        serde_json::to_string(&medo).unwrap()
+        serde_json::to_string_pretty(&medo).unwrap_or_else(|_| "{}".to_string())
     }
 }
 
@@ -144,59 +145,47 @@ pub fn set_json_conf(json: &str)->MeSBuilder{
 
 
 #[cfg(test)]
-mod builder_test{
-
-    use crate::mes::{RawMedo, self};
-
+mod builder_test {
     use super::MeSBuilder;
 
-    //TODO: メジャーバージョンリリース時にテストデータを固定していく
+    const SAMPLE: &str = "title: demo\n----\n@Alice\nこんにちは\n\n@Bob\nやあ\n";
 
     #[test]
-    fn test_parseRawMedo(){
-        let text = std::fs::read_to_string("tests/SampleCommonScript.txt").unwrap();
-        let rawmedo: RawMedo = crate::mes::builder::new().parseRawMedo(&text);
-
-        println!("<header>{}</header>", rawmedo.header);
-        println!("<body>{}</body>", rawmedo.body);
-        
+    fn test_parse_raw_medo_splits_header_and_body() {
+        let raw = crate::mes::builder::new().parse_raw_medo(SAMPLE);
+        assert!(raw.header.contains("title: demo"));
+        assert!(raw.body.contains("@Alice"));
+        assert!(raw.body.contains("@Bob"));
     }
 
     #[test]
-    fn test_parse(){
-        let text = std::fs::read_to_string("tests/SampleCommonScript.txt").unwrap();
-        let medo = crate::mes::builder::new().parse(&text);
-
-        println!("<header>{:?}</header>", medo.header);
-        println!("<body>{:?}</body>", medo.body);
-        
+    fn test_parse_keeps_header_and_pieces() {
+        let medo = crate::mes::builder::new().parse(SAMPLE);
+        assert_eq!(medo.header.raw.trim(), "title: demo");
+        assert_eq!(medo.body.pieces.len(), 2);
+        assert_eq!(medo.body.pieces[0].charactor, "Alice");
+        assert_eq!(medo.body.pieces[0].dialogue, "こんにちは");
+        assert_eq!(medo.body.pieces[1].charactor, "Bob");
     }
 
     #[test]
-    fn test_parse_to_jsonstr(){
-        let text = std::fs::read_to_string("tests/SampleCommonScript.txt").unwrap();
-        let json = crate::mes::builder::new().parse_to_jsonstr(&text);
-
-        println!("{}", json);
+    fn test_parse_to_jsonstr_is_valid_json() {
+        let json = crate::mes::builder::new().parse_to_jsonstr(SAMPLE);
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        assert_eq!(parsed["header"]["raw"].as_str().unwrap().trim(), "title: demo");
+        assert_eq!(parsed["body"]["pieces"].as_array().unwrap().len(), 2);
     }
 
     #[test]
-    fn test_parse_to_jsonstr_withconf(){
-        let text = std::fs::read_to_string("tests/SampleCommonScript.txt").unwrap();
-        let json = r#"
-{
-    "mes_config": {
-        "name": "",
-        "header_delimiter": "----\n",
-        "flat_dialogue_config": {
-        "start_str": "「",
-        "end_str": "」"
-        },
-    }
-}"#;
-        let djson = serde_json::to_string(&mes::builder::new()).unwrap();
-        let result = mes::builder::set_json_conf(&djson).parse_to_jsonstr(&text);
-        println!("{}", result);
+    fn test_parse_to_jsonstr_with_default_conf() {
+        let djson = serde_json::to_string(&crate::mes::builder::new()).unwrap();
+        let result = crate::mes::builder::set_json_conf(&djson).parse_to_jsonstr(SAMPLE);
+        assert!(result.contains("Alice"));
+        assert!(result.contains("Bob"));
     }
 
+    #[test]
+    fn test_builder_default_exists() {
+        let _: MeSBuilder = crate::mes::builder::new();
+    }
 }

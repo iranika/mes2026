@@ -1,12 +1,62 @@
-# Tauri + Vue + TypeScript
+# MeS Editor (mes2026)
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Tauri + Vue 3 + TypeScript の MeS 言語エディタです。`mes-core` で MeS をパースし、Medo JSON / VTT / ワードカウント / チャット形式へ変換できます。
 
-## Recommended IDE Setup
+## 構成
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+| パス | 内容 |
+|------|------|
+| `crates/mes-core` | MeS パーサ・CLI・言語仕様 |
+| `src/` | Vue フロントエンド（プレビュー UI） |
+| `src-tauri/` | Tauri シェル（Rust コマンド経由で mes-core を呼び出し） |
+
+## セットアップ
+
+```bash
+pnpm install
+```
+
+### フロントのみ（Vite）
+
+```bash
+pnpm dev
+```
+
+### デスクトップアプリ（Tauri）
+
+```bash
+pnpm tauri dev
+```
+
+### mes-core CLI
+
+```bash
+cargo run -p mes-core -- parse path/to/script.mes
+cargo run -p mes-core -- vtt path/to/script.mes
+cargo run -p mes-core -- count path/to/script.mes
+cargo run -p mes-core -- chat path/to/script.mes
+```
+
+### テスト
+
+```bash
+cargo test -p mes-core
+```
 
 ## MeS 言語
 
-- 仕様書: [crates/mes-core/MES_LANGUAGE.md](crates/mes-core/MES_LANGUAGE.md#L1)
-- JSON スキーマ: [crates/mes-core/MES_SCHEMA.json](crates/mes-core/MES_SCHEMA.json#L1)
+- 仕様書: [crates/mes-core/MES_LANGUAGE.md](crates/mes-core/MES_LANGUAGE.md)
+- JSON スキーマ: [crates/mes-core/MES_SCHEMA.json](crates/mes-core/MES_SCHEMA.json)
+- EBNF: [crates/mes-core/MES_LANGUAGE.bnf](crates/mes-core/MES_LANGUAGE.bnf)
+
+### プレフィックス（デフォルト）
+
+| 記号 | 意味 |
+|------|------|
+| `@` / `＠` | キャラクター |
+| `#` / `＃` | コメント |
+| `$` / `＄` | サウンドノート |
+| `!` / `！` | サウンドポジション |
+| `&` / `＆` | タイミング（VTT） |
+
+ヘッダと本文は `----\n` で区切ります。`名前「セリフ」` 形式はフラット化されて `@名前` + セリフに変換されます。

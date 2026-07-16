@@ -36,6 +36,11 @@ if_hyper! {
     }
 
     #[inline(always)]
+    pub fn get_chat(mes_text: &str) -> String {
+        mes::get_chat(mes_text, &mes::builder::new())
+    }
+
+    #[inline(always)]
     pub fn count_dialogue_word_to_json(text: &str) -> String {
         let conf = mes::builder::new();
         mes::count_dialogue_word_to_json(text, &conf)

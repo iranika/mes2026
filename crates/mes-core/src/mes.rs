@@ -9,7 +9,7 @@ use self::builder::MeSBuilder;
 
 /* MeSのコア処理 */
 //NOTE: メンバを増減するときは、builder.rsのMedoPieceConfigも編集すること
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct MedoPiece {
     pub dialogue: String,
     pub comments: String,
@@ -17,14 +17,6 @@ pub struct MedoPiece {
     pub charactor: String,
     pub sound_position: String,
     pub timing: String
-}
-
-impl Default for MedoPiece {
-    fn default() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
 }
 
 #[derive(Debug,PartialEq,Serialize, Deserialize)]
@@ -95,8 +87,8 @@ impl RawMedo {
 
 impl RawMedo {
     pub fn parse_header(&self) -> Option<MedoHeader>{
-        return Some(MedoHeader{
-            raw : "".to_string()
+        Some(MedoHeader {
+            raw: self.header.clone(),
         })
     }
     pub fn parse_body(&self, conf: &MeSBuilder) -> Option<MedoBody>{
@@ -150,8 +142,7 @@ impl MedoBody {
 /* パース関連 */
 pub fn parse_mes_to_json(text: &str, conf: &MeSBuilder) -> String{
     let medo = parse_mes(text, conf);
-    let json = serde_json::to_string(&medo).unwrap();
-    json
+    serde_json::to_string_pretty(&medo).unwrap_or_else(|_| "{}".to_string())
 }
 
 pub fn parse_mes_to_json_with_conf(text: &str, json: &str) -> String {
@@ -178,32 +169,53 @@ pub fn get_vtt(text: &str, conf: &MeSBuilder) -> String{
 
 pub fn get_chat(text: &str, conf: &MeSBuilder) -> String {
     let medo = conf.parse(text);
-    let _colorHash:HashMap<String, String> = HashMap::new();
-    let chat_list = medo.body.pieces.into_iter()
-        .map(|v|->String{
-            //自動で色を割り振る
-            format!("<span style=\"color:{}\">{}: {}</span>", &v.charactor, &v.charactor, &v.dialogue)
-        }).collect::<Vec<String>>();
-    
-    chat_list.join("\n")
+    // キャラクター名から決定的に色を割り当てる（同一キャラは常に同色）
+    let palette = [
+        "#e11d48", "#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2", "#db2777",
+    ];
+    let mut color_map: HashMap<String, String> = HashMap::new();
+    let mut next_color = 0usize;
+
+    medo.body
+        .pieces
+        .into_iter()
+        .map(|v| {
+            let name = if v.charactor.is_empty() {
+                "???".to_string()
+            } else {
+                v.charactor.clone()
+            };
+            let color = color_map
+                .entry(name.clone())
+                .or_insert_with(|| {
+                    let c = palette[next_color % palette.len()].to_string();
+                    next_color += 1;
+                    c
+                })
+                .clone();
+            format!(
+                "<span style=\"color:{}\">{}: {}</span>",
+                color, name, v.dialogue
+            )
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 pub fn parse_mes(text: &str, conf: &MeSBuilder) -> Medo {
     //HeaderとBodyに分離
 
-    let mut rawMedo = parse_raw_medo(text, conf);
+    let mut raw_medo = parse_raw_medo(text, conf);
     //CommonScript等の差異を均す
-    rawMedo.doflat(conf);
+    raw_medo.doflat(conf);
 
-    //println!("{}",rawMedo.body);
-    //rawMedo.body = RawMedo::toflat_DialogueString(&(rawMedo.body));
     //Headerのパース
     //Bodyのパース
     //HeaderとBodyをMedoに結合
 
-    return Medo {
-        header: rawMedo.parse_header().unwrap(),
-        body: rawMedo.parse_body(conf).unwrap()
+    Medo {
+        header: raw_medo.parse_header().unwrap(),
+        body: raw_medo.parse_body(conf).unwrap()
     }
 }
 
@@ -223,12 +235,12 @@ pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
 }
 
 pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
-    
     let tmp = _text.replace("\r\n", "\n");
-    //TODO: blocksに不要な空白行から生成されているblockは削除するようにする
-    //TODO: 空白行にスペース等があった場合のためにトリミングをする
-    let blocks: Vec<&str> = tmp.split(conf.mes_config.medo_piece_config.block_delimiter.as_str()).collect();
-    //println!("blocks{:?}", blocks);        
+    let blocks: Vec<&str> = tmp
+        .split(conf.mes_config.medo_piece_config.block_delimiter.as_str())
+        .filter(|block| !block.trim().is_empty())
+        .collect();
+
     //設定を破壊されたくないので一旦コピーしてしまう
     let decorator = conf.mes_config.medo_piece_config.decorator.clone();
     let ignore_prefix = vec![
@@ -240,38 +252,34 @@ pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
     ].concat();
     let mpc = &conf.mes_config.medo_piece_config;
 
-    let block = blocks
+    let pieces = blocks
         .into_iter()
         .map(|x| -> MedoPiece {
-            let lines: Vec<&str> = x.split("\n").collect::<Vec<&str>>();
-            let dialogue = MedoBody::get_dialogue(
-                lines.clone(),
-                &ignore_prefix
-            ).join("\n"); //MedoBody::get_comments(lines).join(",");
-            let comments = MedoBody::get_attribute(
-                    lines.clone(),
-                    &mpc.decorator.comments).join(","); //MedoBody::get_comments(lines).join(",");
+            let lines: Vec<&str> = x
+                .split('\n')
+                .map(|line| line.trim_end())
+                .filter(|line| !line.is_empty())
+                .collect();
+            let dialogue = MedoBody::get_dialogue(lines.clone(), &ignore_prefix).join("\n");
+            let comments = MedoBody::get_attribute(lines.clone(), &mpc.decorator.comments).join(",");
             let sound_note = MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_note).join(",");
             let charactor = MedoBody::get_attribute(lines.clone(), &mpc.decorator.charactor).join(",");
-            let sound_position = MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_position).join(",");
+            let sound_position =
+                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_position).join(",");
             let timing = MedoBody::get_attribute(lines.clone(), &mpc.decorator.timing).join(",");
 
-            return MedoPiece {
-                dialogue: dialogue,
-                comments: comments,
-                sound_note: sound_note,
-                charactor: charactor,
-                sound_position: sound_position,
-                timing: timing,
-            };
-            //println!("{:?}",&result);
+            MedoPiece {
+                dialogue,
+                comments,
+                sound_note,
+                charactor,
+                sound_position,
+                timing,
+            }
         })
         .collect();
-    //println!("{:?}", block);
 
-    let result: MedoBody = MedoBody { pieces: block };
-
-    return result;
+    MedoBody { pieces }
 }
 
 
@@ -308,6 +316,5 @@ pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> String{
             }
         }
     });
-    let json = serde_json::to_string(&word_counter).unwrap();
-    return json;
+    serde_json::to_string_pretty(&word_counter).unwrap_or_else(|_| "{}".to_string())
 }
