@@ -2,12 +2,15 @@
 
 Tauri + Vue 3 + TypeScript の MeS 言語エディタです。`mes-core` で MeS をパースし、Medo JSON / VTT / ワードカウント / チャット形式へ変換できます。
 
+ブラウザのみ（Vite）でも、同梱の WASM ビルド経由でプレビューできます。Tauri 起動時はネイティブコマンドを優先します。
+
 ## 構成
 
 | パス | 内容 |
 |------|------|
-| `crates/mes-core` | MeS パーサ・CLI・言語仕様 |
+| `crates/mes-core` | MeS パーサ・CLI・言語仕様（`wasm` feature でブラウザ向けバインディング） |
 | `src/` | Vue フロントエンド（プレビュー UI） |
+| `src/wasm/mes-core/` | `wasm-pack` 生成物（Vite 用） |
 | `src-tauri/` | Tauri シェル（Rust コマンド経由で mes-core を呼び出し） |
 
 ## セットアップ
@@ -16,10 +19,16 @@ Tauri + Vue 3 + TypeScript の MeS 言語エディタです。`mes-core` で MeS
 pnpm install
 ```
 
-### フロントのみ（Vite）
+### フロントのみ（Vite + WASM）
 
 ```bash
 pnpm dev
+```
+
+`pnpm dev` はブラウザ内 WASM で変換します（Tauri 不要）。WASM を再生成する場合:
+
+```bash
+pnpm run build:wasm
 ```
 
 ### デスクトップアプリ（Tauri）
@@ -42,6 +51,8 @@ cargo run -p mes-core -- chat path/to/script.mes
 ```bash
 cargo test -p mes-core
 ```
+
+サンプル MeS: [`crates/mes-core/tests/fixtures/sample.mes`](crates/mes-core/tests/fixtures/sample.mes)
 
 ## MeS 言語
 

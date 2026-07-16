@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  mes-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test mes-core
+        run: cargo test -p mes-core
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Rebuild WASM package
+        run: |
+          wasm-pack build crates/mes-core --target web --out-dir ../../src/wasm/mes-core \
+            -- --no-default-features --features wasm
+          rm -f src/wasm/mes-core/.gitignore
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+      - name: Approve esbuild native build
+        run: pnpm config set ignore-scripts false && pnpm rebuild esbuild || true
+      - name: Build Vite app
+        run: pnpm build
