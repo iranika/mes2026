@@ -1,7 +1,7 @@
-
 # Cargo.toml (root)
 [workspace]
-members = ["crates/mes-core",
+members = [
   "crates/mes-core",
-  "src-tauri"
+  "src-tauri",
 ]
+resolver = "2"

@@ -35,7 +35,7 @@ enum Commands {
         #[clap(value_parser)]
         path: std::path::PathBuf,
     },
-    /// WIP:チャット形式で出力します.
+    /// チャット形式（HTML span）で出力します.
     Chat {
         #[clap(value_parser)]
         path: std::path::PathBuf,
@@ -93,8 +93,11 @@ fn do_vtt(path: PathBuf) {
     print!("{text}");
 }
 
-fn do_chat(_path: PathBuf) {
-    println!("chat はまだ実装されていません");
+fn do_chat(path: PathBuf) {
+    let content = std::fs::read_to_string(path).expect("could not read file");
+    let conf = mes::builder::new();
+    let text = mes::get_chat(&content, &conf);
+    print!("{text}");
 }
 fn do_count(path: PathBuf, conf: MeSBuilder) {
     let content = std::fs::read_to_string(path).expect("could not read file");
