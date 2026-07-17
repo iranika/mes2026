@@ -9,20 +9,24 @@ export function get_default_config_json(): string;
 
 export function get_vtt(text: string): string;
 
+export function merge_config_json(partial: string): string;
+
 export function parse_mes_to_json(text: string): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly count_dialogue_word_to_json: (a: number, b: number) => [number, number];
-    readonly get_chat: (a: number, b: number) => [number, number];
-    readonly get_default_config_json: () => [number, number];
-    readonly get_vtt: (a: number, b: number) => [number, number];
-    readonly parse_mes_to_json: (a: number, b: number) => [number, number];
+    readonly count_dialogue_word_to_json: (a: number, b: number) => [number, number, number, number];
+    readonly get_chat: (a: number, b: number) => [number, number, number, number];
+    readonly get_default_config_json: () => [number, number, number, number];
+    readonly get_vtt: (a: number, b: number) => [number, number, number, number];
+    readonly merge_config_json: (a: number, b: number) => [number, number, number, number];
+    readonly parse_mes_to_json: (a: number, b: number) => [number, number, number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }

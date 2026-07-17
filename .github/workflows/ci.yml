@@ -41,3 +41,5 @@ jobs:
         run: pnpm config set ignore-scripts false && pnpm rebuild esbuild || true
       - name: Build Vite app
         run: pnpm build
+      - name: Highlight smoke test
+        run: pnpm test:highlight

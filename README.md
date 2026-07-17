@@ -9,7 +9,7 @@ Tauri + Vue 3 + TypeScript の MeS 言語エディタです。`mes-core` で MeS
 | パス | 内容 |
 |------|------|
 | `crates/mes-core` | MeS パーサ・CLI・言語仕様（`wasm` feature でブラウザ向けバインディング） |
-| `src/` | Vue フロントエンド（プレビュー UI） |
+| `src/` | Vue フロントエンド（ハイライト付きエディタ / ファイル I/O / プレビュー） |
 | `src/wasm/mes-core/` | `wasm-pack` 生成物（Vite 用） |
 | `src-tauri/` | Tauri シェル（Rust コマンド経由で mes-core を呼び出し） |
 
@@ -25,7 +25,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` はブラウザ内 WASM で変換します（Tauri 不要）。WASM を再生成する場合:
+`pnpm dev` はブラウザ内 WASM で変換します（Tauri 不要）。開く／保存／書き出しはブラウザのファイルピッカーとダウンロードにフォールバックします。WASM を再生成する場合:
 
 ```bash
 pnpm run build:wasm
@@ -37,6 +37,8 @@ pnpm run build:wasm
 pnpm tauri dev
 ```
 
+ネイティブダイアログで `.mes` の開く／保存、プレビューの書き出しが使えます。
+
 ### mes-core CLI
 
 ```bash
@@ -46,13 +48,24 @@ cargo run -p mes-core -- count path/to/script.mes
 cargo run -p mes-core -- chat path/to/script.mes
 ```
 
+任意の `-c/--config path/to/mes.json` で部分設定をデフォルトへマージできます（全サブコマンド共通）。
+
 ### テスト
 
 ```bash
 cargo test -p mes-core
+pnpm build
 ```
 
-サンプル MeS: [`crates/mes-core/tests/fixtures/sample.mes`](crates/mes-core/tests/fixtures/sample.mes)
+サンプル MeS: [`crates/mes-core/tests/fixtures/sample.mes`](crates/mes-core/tests/fixtures/sample.mes)  
+期待出力スナップショット: [`crates/mes-core/tests/fixtures/expected/`](crates/mes-core/tests/fixtures/expected/)
+
+## エディタ機能
+
+- ライブプレビュー（JSON / VTT / Count / Chat）
+- MeS プレフィックス（`@` `#` `$` `!` `&`）とヘッダ区切り `----` のシンタックスハイライト
+- ファイルの開く／保存／別名で保存
+- 現在のプレビュー形式の書き出し
 
 ## MeS 言語
 

@@ -114,7 +114,7 @@ MeS はセリフ（ダイアログ）や注釈・メタ情報を含むテキス�
 
 ### チャット出力
 - `get_chat(text, conf)` は各 `MedoPiece` を HTML の `<span style="color:...">CHAR: DIALOGUE</span>` のリストとして返す
-- カラー割り当ては未実装（空のハッシュに対して自動割当が示唆されている）
+- カラーは固定パレットからキャラクター出現順に割り当て（同一キャラは常に同色）
 
 ### ワードカウント
 - `count_dialogue_word_to_json(text, conf)` は `unicode-segmentation` の `graphemes(true)` を使って文字（グラフェム）数をカウント
@@ -179,7 +179,8 @@ $ sfx:bell
 
 - `toflat_dialogue` の挙動は現状 `start_str`/`end_str` の組を前提に行われるため、他のフォーマットには注意が必要
 - 空行トリムやブロック生成の処理は厳密ではない（TODO コメントあり）
-- `MeSBuilder` の設定を JSON でロード・マージする機能は限定的（`set_json_conf` は完全置換）
+- 設定 JSON は `merge_json_conf` / `set_json_conf` でデフォルトへディープマージ可能。完全置換が必要な場合は `replace_json_conf` を使う
+- 公開変換 API は `MesResult`（`Result<T, MesError>`）を返す
 - 文字列カウントはグラフェムベース（日本語対応）
 
 ---
