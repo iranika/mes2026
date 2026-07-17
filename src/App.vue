@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { convertMes, getMesBackend, type MesBackend, type PreviewMode } from "./mesApi";
+import MesEditor from "./components/MesEditor.vue";
+import {
+  convertMes,
+  getMesBackend,
+  type MesBackend,
+  type PreviewMode,
+} from "./mesApi";
+import {
+  exportPreview,
+  openMesFile,
+  saveMesFile,
+  saveMesFileAs,
+} from "./fileIo";
 
 const SAMPLE = `title: demo
 ----
@@ -17,10 +29,13 @@ Alice「フラット記法の発話です」
 `;
 
 const mesText = ref<string>(SAMPLE);
+const filePath = ref<string | null>(null);
 const result = ref<string>("");
 const error = ref<string>("");
 const mode = ref<PreviewMode>("json");
 const converting = ref(false);
+const ioBusy = ref(false);
+const status = ref<string>("");
 const backend = ref<MesBackend>(getMesBackend());
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -50,6 +65,71 @@ watch([mesText, mode], scheduleConvert, { immediate: true });
 
 function resetSample() {
   mesText.value = SAMPLE;
+  filePath.value = null;
+  status.value = "サンプルを読み込みました";
+}
+
+async function onOpen() {
+  ioBusy.value = true;
+  status.value = "";
+  try {
+    const opened = await openMesFile();
+    if (!opened) return;
+    mesText.value = opened.contents;
+    filePath.value = opened.path;
+    status.value = opened.path ? `開きました: ${opened.path}` : "ファイルを開きました";
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    ioBusy.value = false;
+  }
+}
+
+async function onSave() {
+  ioBusy.value = true;
+  status.value = "";
+  try {
+    const path = await saveMesFile(mesText.value, filePath.value);
+    if (!path) return;
+    filePath.value = path;
+    status.value = `保存しました: ${path}`;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    ioBusy.value = false;
+  }
+}
+
+async function onSaveAs() {
+  ioBusy.value = true;
+  status.value = "";
+  try {
+    const path = await saveMesFileAs(mesText.value);
+    if (!path) return;
+    filePath.value = path;
+    status.value = `保存しました: ${path}`;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    ioBusy.value = false;
+  }
+}
+
+async function onExport() {
+  if (!result.value) {
+    status.value = "エクスポートするプレビューがありません";
+    return;
+  }
+  ioBusy.value = true;
+  status.value = "";
+  try {
+    const ok = await exportPreview(mode.value, result.value);
+    if (ok) status.value = `${mode.value.toUpperCase()} をエクスポートしました`;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    ioBusy.value = false;
+  }
 }
 </script>
 
@@ -63,20 +143,26 @@ function resetSample() {
         </span>
       </div>
       <p class="subtitle">MeS を Medo / VTT / ワードカウント / チャット形式へ変換</p>
+      <div class="toolbar">
+        <button type="button" class="ghost" :disabled="ioBusy" @click="onOpen">開く</button>
+        <button type="button" class="ghost" :disabled="ioBusy" @click="onSave">保存</button>
+        <button type="button" class="ghost" :disabled="ioBusy" @click="onSaveAs">別名で保存</button>
+        <button type="button" class="ghost" :disabled="ioBusy || !result" @click="onExport">
+          プレビューを書き出し
+        </button>
+        <button type="button" class="ghost" @click="resetSample">サンプルに戻す</button>
+        <span v-if="filePath" class="path" :title="filePath">{{ filePath }}</span>
+      </div>
+      <p v-if="status" class="status">{{ status }}</p>
     </header>
 
     <div class="editor-row">
       <section class="pane">
         <div class="pane-head">
           <h2>MeS 入力</h2>
-          <button type="button" class="ghost" @click="resetSample">サンプルに戻す</button>
+          <span class="hint">@ # $ ! &amp; をハイライト</span>
         </div>
-        <textarea
-          v-model="mesText"
-          class="editor"
-          spellcheck="false"
-          aria-label="MeS source"
-        />
+        <MesEditor v-model="mesText" />
         <div class="controls">
           <button type="button" @click="convert" :disabled="converting">
             {{ converting ? "変換中…" : "再変換" }}
@@ -186,9 +272,33 @@ function resetSample() {
 }
 
 .subtitle {
-  margin: 0.35rem 0 0;
+  margin: 0.35rem 0 0.75rem;
   color: #475569;
   font-size: 0.95rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.path {
+  margin-left: 0.25rem;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.status {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #334155;
 }
 
 .editor-row {
@@ -219,30 +329,25 @@ function resetSample() {
   font-weight: 600;
 }
 
-.editor,
+.hint {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 .output {
   min-height: 55vh;
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #1e293b;
   border-radius: 8px;
   padding: 0.75rem;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.9rem;
   line-height: 1.5;
-  background: rgba(255, 255, 255, 0.85);
-}
-
-.editor {
-  resize: vertical;
-}
-
-.output {
   margin: 0;
   overflow: auto;
   background: #0f172a;
   color: #e2e8f0;
-  border-color: #1e293b;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -302,7 +407,6 @@ button.ghost,
     flex-direction: column;
   }
 
-  .editor,
   .output {
     min-height: 35vh;
   }

@@ -1,0 +1,10 @@
+{
+  "Alice": {
+    "charactor": "Alice",
+    "word_count": 24
+  },
+  "Bob": {
+    "charactor": "Bob",
+    "word_count": 6
+  }
+}

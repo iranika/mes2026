@@ -34,16 +34,20 @@ async function loadWasm(): Promise<WasmModule> {
   return wasmInit;
 }
 
-function convertWithWasm(mod: WasmModule, mode: PreviewMode, text: string): string {
+async function convertWithWasm(
+  mod: WasmModule,
+  mode: PreviewMode,
+  text: string,
+): Promise<string> {
   switch (mode) {
     case "json":
-      return mod.parse_mes_to_json(text);
+      return await mod.parse_mes_to_json(text);
     case "vtt":
-      return mod.get_vtt(text);
+      return await mod.get_vtt(text);
     case "count":
-      return mod.count_dialogue_word_to_json(text);
+      return await mod.count_dialogue_word_to_json(text);
     case "chat":
-      return mod.get_chat(text);
+      return await mod.get_chat(text);
   }
 }
 
@@ -55,5 +59,5 @@ export async function convertMes(mode: PreviewMode, text: string): Promise<strin
   }
 
   const mod = await loadWasm();
-  return convertWithWasm(mod, mode, text);
+  return await convertWithWasm(mod, mode, text);
 }

@@ -1,0 +1,33 @@
+{
+  "header": {
+    "raw": "title: sample fixture\nauthor: mes2026\n"
+  },
+  "body": {
+    "pieces": [
+      {
+        "dialogue": "こんにちは、MeS です。",
+        "comments": " 導入",
+        "sound_note": " chime",
+        "charactor": "Alice",
+        "sound_position": "",
+        "timing": ""
+      },
+      {
+        "dialogue": "やあ、元気？",
+        "comments": "",
+        "sound_note": "",
+        "charactor": "Bob",
+        "sound_position": "",
+        "timing": "00:00:01.000 --> 00:00:03.000"
+      },
+      {
+        "dialogue": "フラット記法の発話です",
+        "comments": "",
+        "sound_note": "",
+        "charactor": "Alice",
+        "sound_position": "",
+        "timing": ""
+      }
+    ]
+  }
+}

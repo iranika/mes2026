@@ -18,7 +18,7 @@ Alice「フラット発話です」
 
     #[test]
     fn parse_mes_extracts_attributes() {
-        let medo = mes::parse_mes(SAMPLE, &builder::new());
+        let medo = mes::parse_mes(SAMPLE, &builder::new()).unwrap();
         assert_eq!(medo.header.raw.trim(), "meta: sample");
         assert!(medo.body.pieces.len() >= 3);
 
@@ -35,7 +35,7 @@ Alice「フラット発話です」
 
     #[test]
     fn flat_dialogue_converts_bracket_style() {
-        let medo = mes::parse_mes(SAMPLE, &builder::new());
+        let medo = mes::parse_mes(SAMPLE, &builder::new()).unwrap();
         let flat = medo
             .body
             .pieces
@@ -48,7 +48,7 @@ Alice「フラット発話です」
     #[test]
     fn empty_blocks_are_filtered() {
         let text = "@A\nhello\n\n\n\n@B\nworld\n";
-        let medo = mes::parse_mes(text, &builder::new());
+        let medo = mes::parse_mes(text, &builder::new()).unwrap();
         assert_eq!(medo.body.pieces.len(), 2);
         assert_eq!(medo.body.pieces[0].charactor, "A");
         assert_eq!(medo.body.pieces[1].charactor, "B");
@@ -56,14 +56,14 @@ Alice「フラット発話です」
 
     #[test]
     fn get_vtt_includes_timing_and_dialogue() {
-        let vtt = mes::get_vtt(SAMPLE, &builder::new());
+        let vtt = mes::get_vtt(SAMPLE, &builder::new()).unwrap();
         assert!(vtt.contains("00:00:01.000 --> 00:00:02.000"));
         assert!(vtt.contains("やあ"));
     }
 
     #[test]
     fn word_count_aggregates_by_character() {
-        let json = mes::count_dialogue_word_to_json(SAMPLE, &builder::new());
+        let json = mes::count_dialogue_word_to_json(SAMPLE, &builder::new()).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(parsed.get("Alice").is_some());
         assert!(parsed.get("Bob").is_some());
@@ -71,7 +71,7 @@ Alice「フラット発話です」
 
     #[test]
     fn get_chat_assigns_stable_colors() {
-        let chat = mes::get_chat(SAMPLE, &builder::new());
+        let chat = mes::get_chat(SAMPLE, &builder::new()).unwrap();
         assert!(chat.contains("Alice:"));
         assert!(chat.contains("color:#"));
     }
@@ -81,5 +81,14 @@ Alice「フラット発話です」
         let piece = mes::MedoPiece::default();
         assert!(piece.dialogue.is_empty());
         assert!(piece.charactor.is_empty());
+    }
+
+    #[test]
+    fn ignore_char_config_affects_count() {
+        let conf = builder::merge_json_conf(r#"{"count_config":{"ignore_char":["ん"]}}"#).unwrap();
+        let with_ignore =
+            mes::count_dialogue_word_to_json_with_conf(SAMPLE.to_string(), &conf).unwrap();
+        let without = mes::count_dialogue_word_to_json(SAMPLE, &builder::new()).unwrap();
+        assert_ne!(with_ignore, without);
     }
 }
