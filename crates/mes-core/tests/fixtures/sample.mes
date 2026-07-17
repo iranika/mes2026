@@ -1,0 +1,13 @@
+title: sample fixture
+author: mes2026
+----
+@Alice
+こんにちは、MeS です。
+# 導入
+$ chime
+
+@Bob
+&00:00:01.000 --> 00:00:03.000
+やあ、元気？
+
+Alice「フラット記法の発話です」
