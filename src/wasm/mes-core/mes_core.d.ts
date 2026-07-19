@@ -3,6 +3,8 @@
 
 export function count_dialogue_word_to_json(text: string): string;
 
+export function emit_mes(text: string): string;
+
 export function get_chat(text: string): string;
 
 export function get_default_config_json(): string;
@@ -18,6 +20,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly count_dialogue_word_to_json: (a: number, b: number) => [number, number, number, number];
+    readonly emit_mes: (a: number, b: number) => [number, number, number, number];
     readonly get_chat: (a: number, b: number) => [number, number, number, number];
     readonly get_default_config_json: () => [number, number, number, number];
     readonly get_vtt: (a: number, b: number) => [number, number, number, number];

@@ -3,6 +3,7 @@ import { ref, watch } from "vue";
 import MesEditor from "./components/MesEditor.vue";
 import {
   convertMes,
+  emitMes,
   getMesBackend,
   type MesBackend,
   type PreviewMode,
@@ -131,6 +132,20 @@ async function onExport() {
     ioBusy.value = false;
   }
 }
+
+async function onNormalize() {
+  ioBusy.value = true;
+  status.value = "";
+  error.value = "";
+  try {
+    mesText.value = await emitMes(mesText.value);
+    status.value = "MeS を正規化しました";
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    ioBusy.value = false;
+  }
+}
 </script>
 
 <template>
@@ -166,6 +181,9 @@ async function onExport() {
         <div class="controls">
           <button type="button" @click="convert" :disabled="converting">
             {{ converting ? "変換中…" : "再変換" }}
+          </button>
+          <button type="button" class="ghost" :disabled="ioBusy" @click="onNormalize">
+            正規化
           </button>
         </div>
       </section>

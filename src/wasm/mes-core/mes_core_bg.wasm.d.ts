@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const count_dialogue_word_to_json: (a: number, b: number) => [number, number, number, number];
+export const emit_mes: (a: number, b: number) => [number, number, number, number];
 export const get_chat: (a: number, b: number) => [number, number, number, number];
 export const get_default_config_json: () => [number, number, number, number];
 export const get_vtt: (a: number, b: number) => [number, number, number, number];

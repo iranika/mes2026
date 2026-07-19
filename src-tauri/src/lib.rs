@@ -20,6 +20,11 @@ fn mes_to_chat(text: &str) -> Result<String, String> {
     mes_core::get_chat(text).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn mes_emit(text: &str) -> Result<String, String> {
+    mes_core::emit_mes(text).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -30,7 +35,8 @@ pub fn run() {
             mes_to_medo,
             mes_to_vtt,
             mes_word_count,
-            mes_to_chat
+            mes_to_chat,
+            mes_emit
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
