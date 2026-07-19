@@ -34,6 +34,13 @@ pub fn count_dialogue_word_to_json(text: &str) -> MesResult<String> {
     mes::count_dialogue_word_to_json(text, &conf)
 }
 
+/// Parse MeS then emit a canonical MeS script (round-trip helper).
+pub fn emit_mes(text: &str) -> MesResult<String> {
+    let conf = mes::builder::new();
+    let medo = mes::parse_mes(text, &conf)?;
+    Ok(medo.to_mes_string(&conf))
+}
+
 /// Browser / WASM bindings for Vite-only preview (no Tauri required).
 #[cfg(feature = "wasm")]
 mod wasm_exports {
@@ -72,5 +79,10 @@ mod wasm_exports {
     pub fn merge_config_json(partial: &str) -> Result<String, JsValue> {
         let conf = crate::mes::builder::merge_json_conf(partial).map_err(to_js_err)?;
         serde_json::to_string_pretty(&conf).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    #[wasm_bindgen]
+    pub fn emit_mes(text: &str) -> Result<String, JsValue> {
+        crate::emit_mes(text).map_err(to_js_err)
     }
 }

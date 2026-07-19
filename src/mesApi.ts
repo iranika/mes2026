@@ -61,3 +61,14 @@ export async function convertMes(mode: PreviewMode, text: string): Promise<strin
   const mod = await loadWasm();
   return await convertWithWasm(mod, mode, text);
 }
+
+/** Parse then emit a canonical MeS script (flat dialogue expanded, decorators normalized). */
+export async function emitMes(text: string): Promise<string> {
+  if (isTauriRuntime()) {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return (await invoke("mes_emit", { text })) as string;
+  }
+
+  const mod = await loadWasm();
+  return await mod.emit_mes(text);
+}

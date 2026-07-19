@@ -46,7 +46,10 @@ cargo run -p mes-core -- parse path/to/script.mes
 cargo run -p mes-core -- vtt path/to/script.mes
 cargo run -p mes-core -- count path/to/script.mes
 cargo run -p mes-core -- chat path/to/script.mes
+cargo run -p mes-core -- emit path/to/script.mes
 ```
+
+`emit` はパース結果を正規化した MeS として再出力します（Medo → MeS ラウンドトリップ）。
 
 任意の `-c/--config path/to/mes.json` で部分設定をデフォルトへマージできます（全サブコマンド共通）。
 
@@ -66,6 +69,7 @@ pnpm build
 - MeS プレフィックス（`@` `#` `$` `!` `&`）とヘッダ区切り `----` のシンタックスハイライト
 - ファイルの開く／保存／別名で保存
 - 現在のプレビュー形式の書き出し
+- 正規化（パース結果を canonical MeS としてエディタへ反映）
 
 ## MeS 言語
 

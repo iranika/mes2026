@@ -1,7 +1,9 @@
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use config::{Config, File};
+use mes_core::error::{MesError, MesResult};
 use mes_core::mes;
 use mes_core::mes::builder::MeSBuilder;
 use question::{Answer, Question};
@@ -40,6 +42,11 @@ enum Commands {
         #[clap(value_parser)]
         path: std::path::PathBuf,
     },
+    /// パース結果を正規化した MeS として再出力します（ラウンドトリップ）.
+    Emit {
+        #[clap(value_parser)]
+        path: std::path::PathBuf,
+    },
     /// コンフィグ関連のサブコマンドです
     Config {
         #[clap(subcommand)]
@@ -52,16 +59,25 @@ enum Commands {
     },
 }
 
-fn main() {
-    let cli = Cli::parse();
-    // コンフィグの初期化（ファイルがあればデフォルトへマージ）
-    let mes_conf = load_config(&cli.conf);
+fn main() -> ExitCode {
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
 
-    // サブコマンドの解析
+fn run() -> MesResult<()> {
+    let cli = Cli::parse();
+    let mes_conf = load_config(&cli.conf)?;
+
     match cli.command {
         Commands::Chat { path } => do_chat(path, &mes_conf),
         Commands::Parse { path } => do_parse(path, &mes_conf),
         Commands::Vtt { path } => do_vtt(path, &mes_conf),
+        Commands::Emit { path } => do_emit(path, &mes_conf),
         Commands::Count { path } => do_count(path, &mes_conf),
         Commands::Config { conf } => match conf {
             ConfigCommand::Create => do_config_create(cli.conf),
@@ -70,67 +86,86 @@ fn main() {
     }
 }
 
-fn load_config(path: &str) -> MeSBuilder {
+fn load_config(path: &str) -> MesResult<MeSBuilder> {
     if !std::path::Path::new(path).exists() {
-        return mes::builder::new();
+        return Ok(mes::builder::new());
     }
 
     // Prefer deep-merge of the file JSON over defaults so partial configs work.
-    match std::fs::read_to_string(path) {
-        Ok(raw) => match mes::builder::merge_json_conf(&raw) {
-            Ok(conf) => conf,
-            Err(err) => {
-                eprintln!("warning: failed to merge config ({err}); trying typed deserialize");
-                Config::builder()
-                    .add_source(File::with_name(path))
-                    .build()
-                    .ok()
-                    .and_then(|c| c.try_deserialize::<MeSBuilder>().ok())
-                    .unwrap_or_else(mes::builder::new)
-            }
-        },
-        Err(_) => mes::builder::new(),
+    let raw = std::fs::read_to_string(path)?;
+    match mes::builder::merge_json_conf(&raw) {
+        Ok(conf) => Ok(conf),
+        Err(err) => {
+            eprintln!("warning: failed to merge config ({err}); trying typed deserialize");
+            Ok(Config::builder()
+                .add_source(File::with_name(path))
+                .build()
+                .ok()
+                .and_then(|c| c.try_deserialize::<MeSBuilder>().ok())
+                .unwrap_or_else(mes::builder::new))
+        }
     }
 }
 
-fn do_parse(path: PathBuf, conf: &MeSBuilder) {
-    let content = std::fs::read_to_string(path).expect("could not read file");
-    let json = mes::parse_mes_to_json(&content, conf).expect("parse failed");
+fn read_input(path: PathBuf) -> MesResult<String> {
+    std::fs::read_to_string(&path).map_err(|err| {
+        MesError::new(format!("could not read {}: {err}", path.display()))
+    })
+}
+
+fn do_parse(path: PathBuf, conf: &MeSBuilder) -> MesResult<()> {
+    let content = read_input(path)?;
+    let json = mes::parse_mes_to_json(&content, conf)?;
     print!("{json}");
+    Ok(())
 }
 
-fn do_vtt(path: PathBuf, conf: &MeSBuilder) {
-    let content = std::fs::read_to_string(path).expect("could not read file");
-    let text = mes::get_vtt(&content, conf).expect("vtt failed");
+fn do_vtt(path: PathBuf, conf: &MeSBuilder) -> MesResult<()> {
+    let content = read_input(path)?;
+    let text = mes::get_vtt(&content, conf)?;
     print!("{text}");
+    Ok(())
 }
 
-fn do_chat(path: PathBuf, conf: &MeSBuilder) {
-    let content = std::fs::read_to_string(path).expect("could not read file");
-    let text = mes::get_chat(&content, conf).expect("chat failed");
+fn do_chat(path: PathBuf, conf: &MeSBuilder) -> MesResult<()> {
+    let content = read_input(path)?;
+    let text = mes::get_chat(&content, conf)?;
     print!("{text}");
+    Ok(())
 }
 
-fn do_count(path: PathBuf, conf: &MeSBuilder) {
-    let content = std::fs::read_to_string(path).expect("could not read file");
-    let json = mes::count_dialogue_word_to_json_with_conf(content, conf).expect("count failed");
+fn do_emit(path: PathBuf, conf: &MeSBuilder) -> MesResult<()> {
+    let content = read_input(path)?;
+    let medo = mes::parse_mes(&content, conf)?;
+    print!("{}", medo.to_mes_string(conf));
+    Ok(())
+}
+
+fn do_count(path: PathBuf, conf: &MeSBuilder) -> MesResult<()> {
+    let content = read_input(path)?;
+    let json = mes::count_dialogue_word_to_json_with_conf(content, conf)?;
     println!("{json}");
+    Ok(())
 }
 
-fn do_config_create(path: String) {
+fn do_config_create(path: String) -> MesResult<()> {
     let def_conf = mes::builder::new();
-    let json = serde_json::to_string_pretty(&def_conf).expect("cannot serialize config");
+    let json = serde_json::to_string_pretty(&def_conf)?;
     let filepath = std::path::Path::new(&path);
     if filepath.exists() {
         let answer = Question::new("すでにファイルが存在します。上書きしますか？").confirm();
         if answer == Answer::NO {
-            return;
+            return Ok(());
         }
     }
-    std::fs::write(path, json).expect("cannot write config");
+    std::fs::write(&path, json).map_err(|err| {
+        MesError::new(format!("cannot write config {}: {err}", filepath.display()))
+    })?;
+    Ok(())
 }
 
-fn do_config_show(mesconf: &MeSBuilder) {
-    let output = serde_json::to_string_pretty(mesconf).expect("cannot serialize config");
+fn do_config_show(mesconf: &MeSBuilder) -> MesResult<()> {
+    let output = serde_json::to_string_pretty(mesconf)?;
     println!("{output}");
+    Ok(())
 }

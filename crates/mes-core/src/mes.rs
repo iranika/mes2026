@@ -34,7 +34,7 @@ pub struct MedoHeader {
     pub raw: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Medo {
     pub header: MedoHeader,
     pub body: MedoBody,
@@ -50,8 +50,6 @@ static MULTI_BLANK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\n{3,}").expect("valid static regex"));
 
 impl RawMedo {
-    //TODO: toflat->common スクリプトへの再変換ができるようにする
-
     pub fn doflat(&mut self, conf: &builder::MeSBuilder) -> MesResult<RawMedo> {
         //NOTE:　フラットレイヤー
         self.toflat_dialogue(conf)?;
@@ -63,7 +61,6 @@ impl RawMedo {
         Ok(self.clone())
     }
 
-    //TODO: toflat_Dialogueとロジックを共有する
     pub fn toflat_dialogue_string(text: &str, conf: &builder::MeSBuilder) -> MesResult<String> {
         let flat_dialogue_config = &conf.mes_config.flat_dialogue_config;
         let name_re = Regex::new(&format!(
@@ -79,9 +76,10 @@ impl RawMedo {
             .map(|x| -> String {
                 match name_re.captures(x) {
                     Some(val) => {
-                        let name = val
-                            .get(0)
-                            .unwrap()
+                        let Some(matched) = val.get(0) else {
+                            return x.to_string();
+                        };
+                        let name = matched
                             .as_str()
                             .replace(flat_dialogue_config.start_str.as_str(), "");
                         let rep_name = name.clone() + flat_dialogue_config.start_str.as_str();
@@ -97,6 +95,22 @@ impl RawMedo {
             .collect::<Vec<String>>()
             .join("\n");
         Ok(body)
+    }
+
+    /// Reconstruct a MeS script from header/body text.
+    pub fn to_mes_string(&self, conf: &builder::MeSBuilder) -> String {
+        let delimiter = &conf.mes_config.header_delimiter;
+        if self.header.is_empty() {
+            return self.body.clone();
+        }
+        format!("{}{}{}", self.header, delimiter, self.body)
+    }
+}
+
+impl Medo {
+    /// Serialize Medo back to a canonical MeS script using the builder decorators.
+    pub fn to_mes_string(&self, conf: &builder::MeSBuilder) -> String {
+        medo_to_mes(self, conf)
     }
 }
 
@@ -151,6 +165,81 @@ impl MedoBody {
             .map(|v| v.to_string())
             .collect()
     }
+}
+
+fn primary_decorator(chars: &[char]) -> Option<char> {
+    chars.first().copied()
+}
+
+fn push_prefixed_parts(lines: &mut Vec<String>, value: &str, prefix: Option<char>) {
+    let Some(prefix) = prefix else {
+        return;
+    };
+    if value.is_empty() {
+        return;
+    }
+    for part in value.split(',') {
+        lines.push(format!("{prefix}{part}"));
+    }
+}
+
+fn piece_to_mes_lines(piece: &MedoPiece, conf: &MeSBuilder) -> Vec<String> {
+    let decorator = &conf.mes_config.medo_piece_config.decorator;
+    let mut lines = Vec::new();
+
+    push_prefixed_parts(
+        &mut lines,
+        &piece.charactor,
+        primary_decorator(&decorator.charactor),
+    );
+    push_prefixed_parts(
+        &mut lines,
+        &piece.timing,
+        primary_decorator(&decorator.timing),
+    );
+    push_prefixed_parts(
+        &mut lines,
+        &piece.sound_position,
+        primary_decorator(&decorator.sound_position),
+    );
+
+    if !piece.dialogue.is_empty() {
+        for dialogue_line in piece.dialogue.split('\n') {
+            lines.push(dialogue_line.to_string());
+        }
+    }
+
+    push_prefixed_parts(
+        &mut lines,
+        &piece.comments,
+        primary_decorator(&decorator.comments),
+    );
+    push_prefixed_parts(
+        &mut lines,
+        &piece.sound_note,
+        primary_decorator(&decorator.sound_note),
+    );
+
+    lines
+}
+
+/// Serialize a parsed [`Medo`] document back to MeS text.
+pub fn medo_to_mes(medo: &Medo, conf: &MeSBuilder) -> String {
+    let block_delimiter = &conf.mes_config.medo_piece_config.block_delimiter;
+    let body = medo
+        .body
+        .pieces
+        .iter()
+        .map(|piece| piece_to_mes_lines(piece, conf).join("\n"))
+        .filter(|block| !block.is_empty())
+        .collect::<Vec<_>>()
+        .join(block_delimiter);
+
+    let raw = RawMedo {
+        header: medo.header.raw.clone(),
+        body,
+    };
+    raw.to_mes_string(conf)
 }
 
 /* パース関連 */
@@ -237,18 +326,16 @@ pub fn parse_mes(text: &str, conf: &MeSBuilder) -> MesResult<Medo> {
 
 pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
     let tmp = text.replace("\r\n", "\n");
-    let blocks: Vec<&str> = tmp
-        .split(conf.mes_config.header_delimiter.as_str())
-        .collect();
-    if blocks.len() == 1 {
-        return RawMedo {
-            header: "".to_string(),
-            body: blocks[0].to_string(),
-        };
-    }
-    RawMedo {
-        header: blocks[0].to_string(),
-        body: blocks[1].to_string(),
+    let delimiter = conf.mes_config.header_delimiter.as_str();
+    match tmp.split_once(delimiter) {
+        Some((header, body)) => RawMedo {
+            header: header.to_string(),
+            body: body.to_string(),
+        },
+        None => RawMedo {
+            header: String::new(),
+            body: tmp,
+        },
     }
 }
 

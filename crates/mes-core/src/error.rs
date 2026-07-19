@@ -38,4 +38,10 @@ impl From<regex::Error> for MesError {
     }
 }
 
+impl From<std::io::Error> for MesError {
+    fn from(value: std::io::Error) -> Self {
+        Self::new(format!("io error: {value}"))
+    }
+}
+
 pub type MesResult<T> = Result<T, MesError>;

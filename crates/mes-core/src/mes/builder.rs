@@ -128,6 +128,12 @@ impl MeSBuilder {
         let medo = self.parse(mes_text)?;
         Ok(serde_json::to_string_pretty(&medo)?)
     }
+
+    /// Parse then emit a canonical MeS script.
+    pub fn emit(self: &Self, mes_text: &str) -> MesResult<String> {
+        let medo = self.parse(mes_text)?;
+        Ok(medo.to_mes_string(self))
+    }
 }
 
 pub fn new() -> MeSBuilder {
