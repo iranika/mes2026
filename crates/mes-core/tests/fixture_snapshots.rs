@@ -100,7 +100,7 @@ fn no_header_fixture_parses_body_only() {
 #[test]
 fn fixtures_round_trip_table() {
     let conf = builder::new();
-    for name in ["sample.mes", "fullwidth.mes", "no_header.mes"] {
+    for name in ["sample.mes", "fullwidth.mes", "no_header.mes", "emoji.mes"] {
         let source = read_fixture(name);
         let parsed = mes::parse_mes(&source, &conf)
             .unwrap_or_else(|e| panic!("{name} parse failed: {e}"));
@@ -109,4 +109,42 @@ fn fixtures_round_trip_table() {
             .unwrap_or_else(|e| panic!("{name} reparse failed: {e}"));
         assert_eq!(parsed, reparsed, "{name} round-trip mismatch");
     }
+}
+
+#[test]
+fn custom_delimiter_fixture_uses_overlay_config() {
+    let conf_json = read_fixture("custom_delimiter.json");
+    let conf = builder::merge_json_conf(&conf_json).expect("merge custom delimiter conf");
+    let source = read_fixture("custom_delimiter.mes");
+    let medo = mes::parse_mes(&source, &conf).expect("parse custom delimiter");
+    assert_eq!(medo.header.raw.trim(), "title: custom delimiter");
+    assert_eq!(medo.body.pieces.len(), 2);
+    assert_eq!(medo.body.pieces[0].charactor, "Alice");
+    assert_eq!(medo.body.pieces[0].dialogue, "区切りがカスタムです。");
+    assert_eq!(medo.body.pieces[1].charactor, "Bob");
+
+    let emitted = mes::medo_to_mes(&medo, &conf);
+    assert!(
+        emitted.contains("====\n"),
+        "emit should keep custom header delimiter: {emitted}"
+    );
+    let reparsed = mes::parse_mes(&emitted, &conf).expect("reparse custom delimiter");
+    assert_eq!(medo, reparsed);
+}
+
+#[test]
+fn emoji_fixture_preserves_grapheme_dialogue() {
+    let source = read_fixture("emoji.mes");
+    let medo = mes::parse_mes(&source, &builder::new()).expect("parse emoji");
+    assert_eq!(medo.body.pieces.len(), 2);
+    assert!(medo.body.pieces[0].dialogue.contains('👋'));
+    assert!(medo.body.pieces[0].dialogue.contains("👨‍👩‍👧‍👦"));
+    assert!(medo.body.pieces[1].dialogue.contains('🙂'));
+
+    let count =
+        mes::count_dialogue_word_to_json(&source, &builder::new()).expect("count emoji");
+    let value: serde_json::Value = serde_json::from_str(&count).unwrap();
+    let alice = &value["Alice"];
+    assert_eq!(alice["charactor"], "Alice");
+    assert!(alice["word_count"].as_u64().unwrap() > 0);
 }

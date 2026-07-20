@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use config::{Config, File};
 use mes_core::error::{MesError, MesResult};
 use mes_core::mes;
 use mes_core::mes::builder::MeSBuilder;
@@ -88,23 +87,18 @@ fn run() -> MesResult<()> {
 
 fn load_config(path: &str) -> MesResult<MeSBuilder> {
     if !std::path::Path::new(path).exists() {
+        // Missing config is fine: use built-in defaults (typical for `./mes.json`).
         return Ok(mes::builder::new());
     }
 
     // Prefer deep-merge of the file JSON over defaults so partial configs work.
-    let raw = std::fs::read_to_string(path)?;
-    match mes::builder::merge_json_conf(&raw) {
-        Ok(conf) => Ok(conf),
-        Err(err) => {
-            eprintln!("warning: failed to merge config ({err}); trying typed deserialize");
-            Ok(Config::builder()
-                .add_source(File::with_name(path))
-                .build()
-                .ok()
-                .and_then(|c| c.try_deserialize::<MeSBuilder>().ok())
-                .unwrap_or_else(mes::builder::new))
-        }
-    }
+    // Invalid / unreadable config must fail so callers see a non-zero exit.
+    let raw = std::fs::read_to_string(path).map_err(|err| {
+        MesError::new(format!("could not read config {path}: {err}"))
+    })?;
+    mes::builder::merge_json_conf(&raw).map_err(|err| {
+        MesError::new(format!("invalid config {path}: {err}"))
+    })
 }
 
 fn read_input(path: PathBuf) -> MesResult<String> {
