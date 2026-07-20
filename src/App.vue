@@ -38,8 +38,48 @@ const converting = ref(false);
 const ioBusy = ref(false);
 const status = ref<string>("");
 const backend = ref<MesBackend>(getMesBackend());
+const editorRef = ref<{ setScrollRatio: (ratio: number) => void } | null>(null);
+const previewRef = ref<HTMLElement | null>(null);
+const syncScrollEnabled = ref(true);
+let syncingScroll = false;
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scrollRatioOf(el: HTMLElement): number {
+  const max = el.scrollHeight - el.clientHeight;
+  return max <= 0 ? 0 : el.scrollTop / max;
+}
+
+function applyScrollRatio(el: HTMLElement, ratio: number) {
+  const max = el.scrollHeight - el.clientHeight;
+  if (max <= 0) return;
+  const next = Math.max(0, Math.min(1, ratio)) * max;
+  if (Math.abs(el.scrollTop - next) < 1) return;
+  el.scrollTop = next;
+}
+
+function onEditorScrollRatio(ratio: number) {
+  if (!syncScrollEnabled.value || syncingScroll) return;
+  const preview = previewRef.value;
+  if (!preview) return;
+  syncingScroll = true;
+  applyScrollRatio(preview, ratio);
+  requestAnimationFrame(() => {
+    syncingScroll = false;
+  });
+}
+
+function onPreviewScroll() {
+  if (!syncScrollEnabled.value || syncingScroll) return;
+  const preview = previewRef.value;
+  const editor = editorRef.value;
+  if (!preview || !editor) return;
+  syncingScroll = true;
+  editor.setScrollRatio(scrollRatioOf(preview));
+  requestAnimationFrame(() => {
+    syncingScroll = false;
+  });
+}
 
 async function convert() {
   error.value = "";
@@ -177,7 +217,11 @@ async function onNormalize() {
           <h2>MeS 入力</h2>
           <span class="hint">@ # $ ! &amp; をハイライト</span>
         </div>
-        <MesEditor v-model="mesText" />
+        <MesEditor
+          ref="editorRef"
+          v-model="mesText"
+          @scroll-ratio="onEditorScrollRatio"
+        />
         <div class="controls">
           <button type="button" @click="convert" :disabled="converting">
             {{ converting ? "変換中…" : "再変換" }}
@@ -185,6 +229,10 @@ async function onNormalize() {
           <button type="button" class="ghost" :disabled="ioBusy" @click="onNormalize">
             正規化
           </button>
+          <label class="sync-toggle" title="入力とプレビューの縦スクロールを連動">
+            <input v-model="syncScrollEnabled" type="checkbox" />
+            スクロール同期
+          </label>
         </div>
       </section>
 
@@ -231,8 +279,19 @@ async function onNormalize() {
           </div>
         </div>
         <div v-if="error" class="error">{{ error }}</div>
-        <pre v-if="mode !== 'chat'" class="output">{{ result }}</pre>
-        <div v-else class="output chat" v-html="result"></div>
+        <pre
+          v-if="mode !== 'chat'"
+          ref="previewRef"
+          class="output"
+          @scroll="onPreviewScroll"
+        >{{ result }}</pre>
+        <div
+          v-else
+          ref="previewRef"
+          class="output chat"
+          v-html="result"
+          @scroll="onPreviewScroll"
+        ></div>
       </section>
     </div>
   </main>
@@ -378,6 +437,22 @@ async function onNormalize() {
 .controls {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sync-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #475569;
+  user-select: none;
+}
+
+.sync-toggle input {
+  margin: 0;
 }
 
 .tabs {
