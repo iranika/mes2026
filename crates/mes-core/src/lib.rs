@@ -47,7 +47,7 @@ mod wasm_exports {
     use wasm_bindgen::prelude::*;
 
     fn to_js_err(err: crate::MesError) -> JsValue {
-        JsValue::from_str(err.message())
+        JsValue::from_str(&err.to_string())
     }
 
     #[wasm_bindgen]
