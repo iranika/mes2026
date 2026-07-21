@@ -19,6 +19,8 @@ pub struct MedoPiece {
     pub dialogue: String,
     pub comments: String,
     pub sound_note: String,
+    /// Historical spelling kept for wire compatibility; `character` is accepted on input.
+    #[serde(alias = "character")]
     pub charactor: String,
     pub sound_position: String,
     pub timing: String,
@@ -121,7 +123,7 @@ impl RawMedo {
         }
     }
 
-    pub fn parse_body(&self, conf: &MeSBuilder) -> MedoBody {
+    pub fn parse_body(&self, conf: &MeSBuilder) -> MesResult<MedoBody> {
         parse_medo_body(self.body.as_str(), conf)
     }
 
@@ -130,7 +132,7 @@ impl RawMedo {
         raw.doflat(conf)?;
         Ok(Medo {
             header: raw.parse_header(),
-            body: parse_medo_body(&raw.body, conf),
+            body: parse_medo_body(&raw.body, conf)?,
         })
     }
 }
@@ -314,13 +316,14 @@ pub fn get_chat(text: &str, conf: &MeSBuilder) -> MesResult<String> {
 }
 
 pub fn parse_mes(text: &str, conf: &MeSBuilder) -> MesResult<Medo> {
+    validate_timing_cues_in_source(text, conf)?;
     let mut raw_medo = parse_raw_medo(text, conf);
     //CommonScript等の差異を均す
     raw_medo.doflat(conf)?;
 
     Ok(Medo {
         header: raw_medo.parse_header(),
-        body: raw_medo.parse_body(conf),
+        body: parse_medo_body(raw_medo.body.as_str(), conf)?,
     })
 }
 
@@ -339,8 +342,47 @@ pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
     }
 }
 
-pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
-    let tmp = _text.replace("\r\n", "\n");
+static TIMING_CUE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}$")
+        .expect("valid static timing regex")
+});
+
+fn is_valid_timing_cue(timing: &str) -> bool {
+    TIMING_CUE_RE.is_match(timing.trim())
+}
+
+/// Validate `&` / `＆` timing lines against the WebVTT cue pattern, reporting
+/// 1-based line numbers in the original source (editor-accurate).
+fn validate_timing_cues_in_source(text: &str, conf: &MeSBuilder) -> MesResult<()> {
+    let prefixes = &conf.mes_config.medo_piece_config.decorator.timing;
+    for (idx, line) in text.replace("\r\n", "\n").lines().enumerate() {
+        let mut chars = line.chars();
+        let Some(first) = chars.next() else {
+            continue;
+        };
+        if !prefixes.contains(&first) {
+            continue;
+        }
+        let rest: String = chars.collect();
+        let trimmed = rest.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if !is_valid_timing_cue(trimmed) {
+            return Err(MesError::with_location(
+                format!(
+                    "invalid timing `{trimmed}`: expected HH:MM:SS.mmm --> HH:MM:SS.mmm"
+                ),
+                idx + 1,
+                Some(1),
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn parse_medo_body(text: &str, conf: &builder::MeSBuilder) -> MesResult<MedoBody> {
+    let tmp = text.replace("\r\n", "\n");
     let blocks: Vec<&str> = tmp
         .split(conf.mes_config.medo_piece_config.block_delimiter.as_str())
         .filter(|block| !block.trim().is_empty())
@@ -387,12 +429,13 @@ pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
         })
         .collect();
 
-    MedoBody { pieces }
+    Ok(MedoBody { pieces })
 }
 
 /* WordCount関連のコード */
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct WordCount {
+    #[serde(alias = "character")]
     charactor: String,
     word_count: usize,
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import MesEditor from "./components/MesEditor.vue";
 import {
   convertMes,
@@ -28,6 +28,8 @@ $ chime
 
 Alice「フラット記法の発話です」
 `;
+
+const PREVIEW_MODES: PreviewMode[] = ["json", "vtt", "count", "chat"];
 
 const mesText = ref<string>(SAMPLE);
 const filePath = ref<string | null>(null);
@@ -146,6 +148,61 @@ async function onNormalize() {
     ioBusy.value = false;
   }
 }
+
+function onKeydown(event: KeyboardEvent) {
+  const mod = event.metaKey || event.ctrlKey;
+  if (!mod) return;
+
+  const key = event.key.toLowerCase();
+
+  if (key === "s") {
+    event.preventDefault();
+    if (ioBusy.value) return;
+    if (event.shiftKey) {
+      void onSaveAs();
+    } else {
+      void onSave();
+    }
+    return;
+  }
+
+  if (key === "o") {
+    event.preventDefault();
+    if (!ioBusy.value) void onOpen();
+    return;
+  }
+
+  if (key === "e") {
+    event.preventDefault();
+    if (!ioBusy.value) void onExport();
+    return;
+  }
+
+  // Ctrl/Cmd+Shift+F — normalize (format)
+  if (key === "f" && event.shiftKey) {
+    event.preventDefault();
+    if (!ioBusy.value) void onNormalize();
+    return;
+  }
+
+  // Ctrl/Cmd+1..4 — preview mode tabs (even while typing in the editor)
+  if (key >= "1" && key <= "4" && !event.shiftKey && !event.altKey) {
+    const index = Number(key) - 1;
+    const next = PREVIEW_MODES[index];
+    if (next) {
+      event.preventDefault();
+      mode.value = next;
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown);
+});
 </script>
 
 <template>
@@ -175,7 +232,7 @@ async function onNormalize() {
       <section class="pane">
         <div class="pane-head">
           <h2>MeS 入力</h2>
-          <span class="hint">@ # $ ! &amp; をハイライト</span>
+          <span class="hint">@ # $ ! &amp; をハイライト · ⌘/Ctrl+S 保存 · ⌘/Ctrl+Shift+F 正規化</span>
         </div>
         <MesEditor v-model="mesText" />
         <div class="controls">
@@ -191,12 +248,13 @@ async function onNormalize() {
       <section class="pane preview">
         <div class="pane-head">
           <h2>プレビュー</h2>
-          <div class="tabs" role="tablist">
+          <div class="tabs" role="tablist" aria-label="プレビュー形式">
             <button
               type="button"
               role="tab"
               :aria-selected="mode === 'json'"
               :class="{ active: mode === 'json' }"
+              title="⌘/Ctrl+1"
               @click="mode = 'json'"
             >
               JSON
@@ -206,6 +264,7 @@ async function onNormalize() {
               role="tab"
               :aria-selected="mode === 'vtt'"
               :class="{ active: mode === 'vtt' }"
+              title="⌘/Ctrl+2"
               @click="mode = 'vtt'"
             >
               VTT
@@ -215,6 +274,7 @@ async function onNormalize() {
               role="tab"
               :aria-selected="mode === 'count'"
               :class="{ active: mode === 'count' }"
+              title="⌘/Ctrl+3"
               @click="mode = 'count'"
             >
               Count
@@ -224,6 +284,7 @@ async function onNormalize() {
               role="tab"
               :aria-selected="mode === 'chat'"
               :class="{ active: mode === 'chat' }"
+              title="⌘/Ctrl+4"
               @click="mode = 'chat'"
             >
               Chat

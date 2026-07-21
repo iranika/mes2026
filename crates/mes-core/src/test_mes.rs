@@ -140,4 +140,34 @@ Alice「フラット発話です」
         assert!(medo.header.raw.is_empty());
         assert_eq!(medo.body.pieces[0].charactor, "Solo");
     }
+
+    #[test]
+    fn invalid_timing_reports_source_line() {
+        let text = "title: bad\n----\n@Alice\n&not-a-cue\nhello\n";
+        let err = mes::parse_mes(text, &builder::new()).expect_err("timing should fail");
+        assert_eq!(err.line(), Some(4));
+        assert!(err.to_string().contains("invalid timing"));
+        assert!(err.to_string().contains("line 4"));
+    }
+
+    #[test]
+    fn valid_timing_with_spaces_is_accepted() {
+        let text = "@Bob\n& 00:00:01.000 --> 00:00:02.000\nhi\n";
+        let medo = mes::parse_mes(text, &builder::new()).unwrap();
+        assert_eq!(medo.body.pieces[0].timing.trim(), "00:00:01.000 --> 00:00:02.000");
+    }
+
+    #[test]
+    fn medo_piece_deserializes_character_alias() {
+        let json = r#"{
+            "dialogue": "hi",
+            "comments": "",
+            "sound_note": "",
+            "character": "Alice",
+            "sound_position": "",
+            "timing": ""
+        }"#;
+        let piece: mes::MedoPiece = serde_json::from_str(json).unwrap();
+        assert_eq!(piece.charactor, "Alice");
+    }
 }

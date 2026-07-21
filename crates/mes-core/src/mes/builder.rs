@@ -116,12 +116,7 @@ impl MeSBuilder {
 
 impl MeSBuilder {
     pub fn parse(self: &Self, mes_text: &str) -> MesResult<Medo> {
-        let mut raw_medo = self.parse_raw_medo(mes_text);
-        raw_medo.doflat(self)?;
-        Ok(Medo {
-            header: raw_medo.parse_header(),
-            body: raw_medo.parse_body(self),
-        })
+        crate::mes::parse_mes(mes_text, self)
     }
 
     pub fn parse_to_jsonstr(self: &Self, mes_text: &str) -> MesResult<String> {
