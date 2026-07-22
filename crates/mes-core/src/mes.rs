@@ -1,7 +1,7 @@
 pub mod builder;
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     sync::LazyLock,
 };
 
@@ -11,6 +11,19 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use self::builder::MeSBuilder;
 use crate::error::{MesError, MesResult};
+
+/// Preferred decorator characters observed while parsing a piece.
+///
+/// Used by emit to preserve halfwidth vs fullwidth forms (e.g. `@` vs `＠`).
+/// Skipped in JSON so Medo interchange stays stable.
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct MedoPiecePrefixes {
+    pub comments: Option<char>,
+    pub sound_note: Option<char>,
+    pub charactor: Option<char>,
+    pub sound_position: Option<char>,
+    pub timing: Option<char>,
+}
 
 /* MeSのコア処理 */
 //NOTE: メンバを増減するときは、builder.rsのMedoPieceConfigも編集すること
@@ -22,6 +35,8 @@ pub struct MedoPiece {
     pub charactor: String,
     pub sound_position: String,
     pub timing: String,
+    #[serde(skip)]
+    pub prefixes: MedoPiecePrefixes,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -136,21 +151,24 @@ impl RawMedo {
 }
 
 impl MedoBody {
-    fn get_attribute(block: Vec<&str>, prefix: &[char]) -> Vec<String> {
-        block
+    /// Collect attribute values and the first matching decorator used in the block.
+    fn get_attribute(block: Vec<&str>, prefix: &[char]) -> (String, Option<char>) {
+        let mut preferred: Option<char> = None;
+        let values: Vec<String> = block
             .into_iter()
-            .filter(|x| {
-                prefix.iter().any(|&p| match x.chars().next() {
-                    Some(v) => v == p,
-                    None => false,
-                })
+            .filter_map(|line| {
+                let mut chars = line.chars();
+                let first = chars.next()?;
+                if !prefix.iter().any(|&p| p == first) {
+                    return None;
+                }
+                if preferred.is_none() {
+                    preferred = Some(first);
+                }
+                Some(chars.as_str().to_string())
             })
-            .map(|v| {
-                let mut text = v.to_string();
-                text.remove(0);
-                text
-            })
-            .collect()
+            .collect();
+        (values.join(","), preferred)
     }
 
     fn get_dialogue(block: Vec<&str>, ignore_prefix: &[char]) -> Vec<String> {
@@ -169,6 +187,12 @@ impl MedoBody {
 
 fn primary_decorator(chars: &[char]) -> Option<char> {
     chars.first().copied()
+}
+
+fn emit_decorator(preferred: Option<char>, configured: &[char]) -> Option<char> {
+    preferred
+        .filter(|c| configured.iter().any(|p| p == c))
+        .or_else(|| primary_decorator(configured))
 }
 
 fn push_prefixed_parts(lines: &mut Vec<String>, value: &str, prefix: Option<char>) {
@@ -190,17 +214,17 @@ fn piece_to_mes_lines(piece: &MedoPiece, conf: &MeSBuilder) -> Vec<String> {
     push_prefixed_parts(
         &mut lines,
         &piece.charactor,
-        primary_decorator(&decorator.charactor),
+        emit_decorator(piece.prefixes.charactor, &decorator.charactor),
     );
     push_prefixed_parts(
         &mut lines,
         &piece.timing,
-        primary_decorator(&decorator.timing),
+        emit_decorator(piece.prefixes.timing, &decorator.timing),
     );
     push_prefixed_parts(
         &mut lines,
         &piece.sound_position,
-        primary_decorator(&decorator.sound_position),
+        emit_decorator(piece.prefixes.sound_position, &decorator.sound_position),
     );
 
     if !piece.dialogue.is_empty() {
@@ -212,12 +236,12 @@ fn piece_to_mes_lines(piece: &MedoPiece, conf: &MeSBuilder) -> Vec<String> {
     push_prefixed_parts(
         &mut lines,
         &piece.comments,
-        primary_decorator(&decorator.comments),
+        emit_decorator(piece.prefixes.comments, &decorator.comments),
     );
     push_prefixed_parts(
         &mut lines,
         &piece.sound_note,
-        primary_decorator(&decorator.sound_note),
+        emit_decorator(piece.prefixes.sound_note, &decorator.sound_note),
     );
 
     lines
@@ -367,14 +391,16 @@ pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
                 .filter(|line| !line.is_empty())
                 .collect();
             let dialogue = MedoBody::get_dialogue(lines.clone(), &ignore_prefix).join("\n");
-            let comments = MedoBody::get_attribute(lines.clone(), &mpc.decorator.comments).join(",");
-            let sound_note =
-                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_note).join(",");
-            let charactor =
-                MedoBody::get_attribute(lines.clone(), &mpc.decorator.charactor).join(",");
-            let sound_position =
-                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_position).join(",");
-            let timing = MedoBody::get_attribute(lines.clone(), &mpc.decorator.timing).join(",");
+            let (comments, comments_prefix) =
+                MedoBody::get_attribute(lines.clone(), &mpc.decorator.comments);
+            let (sound_note, sound_note_prefix) =
+                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_note);
+            let (charactor, charactor_prefix) =
+                MedoBody::get_attribute(lines.clone(), &mpc.decorator.charactor);
+            let (sound_position, sound_position_prefix) =
+                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_position);
+            let (timing, timing_prefix) =
+                MedoBody::get_attribute(lines.clone(), &mpc.decorator.timing);
 
             MedoPiece {
                 dialogue,
@@ -383,6 +409,13 @@ pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
                 charactor,
                 sound_position,
                 timing,
+                prefixes: MedoPiecePrefixes {
+                    comments: comments_prefix,
+                    sound_note: sound_note_prefix,
+                    charactor: charactor_prefix,
+                    sound_position: sound_position_prefix,
+                    timing: timing_prefix,
+                },
             }
         })
         .collect();
@@ -406,8 +439,8 @@ pub fn count_dialogue_word_to_json_with_conf(mut text: String, conf: &MeSBuilder
 
 pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<String> {
     let medo = parse_mes(text, conf)?;
-    //キャラクター毎にワード数を集計する
-    let mut word_counter: HashMap<String, WordCount> = HashMap::new();
+    // キャラクター毎にワード数を集計する（BTreeMap でキー順を安定化）
+    let mut word_counter: BTreeMap<String, WordCount> = BTreeMap::new();
     medo.body.pieces.into_iter().for_each(|piece: MedoPiece| {
         match word_counter.get_mut(&piece.charactor) {
             Some(x) => {

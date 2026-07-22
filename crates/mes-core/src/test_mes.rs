@@ -125,6 +125,55 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn emit_preserves_fullwidth_decorators() {
+        let text = "----\n＠Alice\nこんにちは\n＃メモ\n＄bell\n！L\n＆00:00:01.000 --> 00:00:02.000\n";
+        let conf = builder::new();
+        let emitted = mes::parse_mes(text, &conf)
+            .unwrap()
+            .to_mes_string(&conf);
+        assert!(emitted.contains('＠'), "charactor prefix: {emitted}");
+        assert!(emitted.contains('＃'), "comment prefix: {emitted}");
+        assert!(emitted.contains('＄'), "sound prefix: {emitted}");
+        assert!(emitted.contains('！'), "position prefix: {emitted}");
+        assert!(emitted.contains('＆'), "timing prefix: {emitted}");
+        assert!(!emitted.contains('@'));
+        assert!(!emitted.contains('#'));
+        assert!(!emitted.contains('$'));
+        assert!(!emitted.contains('!'));
+        assert!(!emitted.contains('&'));
+    }
+
+    #[test]
+    fn emit_keeps_halfwidth_decorators_by_default() {
+        let text = "----\n@Alice\nhello\n#note\n";
+        let conf = builder::new();
+        let emitted = mes::parse_mes(text, &conf)
+            .unwrap()
+            .to_mes_string(&conf);
+        assert!(emitted.contains("@Alice"));
+        assert!(emitted.contains("#note"));
+        assert!(!emitted.contains('＠'));
+        assert!(!emitted.contains('＃'));
+    }
+
+    #[test]
+    fn word_count_json_keys_are_sorted() {
+        let text = "----\n@Zoe\nhi\n\n@Amy\nhey\n\n@Bob\nyo\n";
+        let json = mes::count_dialogue_word_to_json(text, &builder::new()).unwrap();
+        let keys: Vec<&str> = json
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                trimmed
+                    .strip_prefix('"')
+                    .and_then(|rest| rest.split('"').next())
+                    .filter(|key| matches!(*key, "Amy" | "Bob" | "Zoe"))
+            })
+            .collect();
+        assert_eq!(keys, vec!["Amy", "Bob", "Zoe"], "pretty JSON keys: {json}");
+    }
+
+    #[test]
     fn crlf_input_normalizes() {
         let text = "meta: crlf\r\n----\r\n@Alice\r\nhello\r\n";
         let medo = mes::parse_mes(text, &builder::new()).unwrap();
