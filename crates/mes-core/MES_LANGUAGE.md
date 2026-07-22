@@ -118,8 +118,13 @@ MeS はセリフ（ダイアログ）や注釈・メタ情報を含むテキス�
 
 ### ワードカウント
 - `count_dialogue_word_to_json(text, conf)` は `unicode-segmentation` の `graphemes(true)` を使って文字（グラフェム）数をカウント
-- 結果はキャラクターごとに集計した `HashMap<String, WordCount>` を JSON 化して返す
+- 結果はキャラクターごとに集計した `BTreeMap<String, WordCount>` を JSON 化して返す（キーは辞書順で安定）
 - `count_dialogue_word_to_json_with_conf(text, conf)` は `conf.count_config.ignore_char` に含まれる文字列を事前に削除してから集計する
+
+### MeS 再出力（emit / 正規化）
+- `medo_to_mes` / `emit_mes` はパース結果を canonical な MeS テキストへ戻す
+- 属性行の半角／全角プレフィックスはパース時に観測したものを優先して保持する（例: `＠Alice` → emit 後も `＠`）
+- 観測情報がない場合（JSON 由来の `Medo` など）は設定リスト先頭のプレフィックス（通常は半角）を使う
 
 ---
 
