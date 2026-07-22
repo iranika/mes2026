@@ -88,6 +88,19 @@ fn fullwidth_fixture_parses_attributes() {
 }
 
 #[test]
+fn fullwidth_fixture_emit_keeps_fullwidth_prefixes() {
+    let source = read_fixture("fullwidth.mes");
+    let conf = builder::new();
+    let emitted = mes::medo_to_mes(&mes::parse_mes(&source, &conf).expect("parse"), &conf);
+    for ch in ['＠', '＃', '＄', '！', '＆'] {
+        assert!(
+            emitted.contains(ch),
+            "expected fullwidth decorator {ch:?} in emit:\n{emitted}"
+        );
+    }
+}
+
+#[test]
 fn no_header_fixture_parses_body_only() {
     let source = read_fixture("no_header.mes");
     let medo = mes::parse_mes(&source, &builder::new()).expect("parse no_header");
