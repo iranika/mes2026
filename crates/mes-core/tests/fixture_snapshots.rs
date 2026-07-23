@@ -88,6 +88,26 @@ fn fullwidth_fixture_parses_attributes() {
 }
 
 #[test]
+fn fullwidth_fixture_emit_preserves_field_order() {
+    let source = read_fixture("fullwidth.mes");
+    let conf = builder::new();
+    let emitted = mes::medo_to_mes(&mes::parse_mes(&source, &conf).expect("parse"), &conf);
+    // Prefix width may canonicalize to halfwidth until that lands; field order must stay.
+    let body = emitted.split_once("----\n").map(|(_, b)| b).unwrap_or(&emitted);
+    let lines: Vec<&str> = body.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(lines.len(), 6, "emitted:\n{emitted}");
+    assert!(lines[0].ends_with("Alice"), "charactor first: {lines:?}");
+    assert_eq!(lines[1], "こんにちは");
+    assert!(lines[2].ends_with("メモ"), "comments third: {lines:?}");
+    assert!(lines[3].ends_with("chime"), "sound fourth: {lines:?}");
+    assert!(lines[4].ends_with('L'), "position fifth: {lines:?}");
+    assert!(
+        lines[5].contains("00:00:01.000 --> 00:00:02.000"),
+        "timing last: {lines:?}"
+    );
+}
+
+#[test]
 fn no_header_fixture_parses_body_only() {
     let source = read_fixture("no_header.mes");
     let medo = mes::parse_mes(&source, &builder::new()).expect("parse no_header");

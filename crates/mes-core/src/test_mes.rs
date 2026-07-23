@@ -125,6 +125,46 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn emit_preserves_attribute_and_dialogue_order() {
+        let text = "----\n@Alice\nこんにちは\n#メモ\n$bell\n!L\n&00:00:01.000 --> 00:00:02.000\n";
+        let conf = builder::new();
+        let emitted = mes::parse_mes(text, &conf)
+            .unwrap()
+            .to_mes_string(&conf);
+        let expected = "@Alice\nこんにちは\n#メモ\n$bell\n!L\n&00:00:01.000 --> 00:00:02.000";
+        assert!(
+            emitted.contains(expected),
+            "expected source field order in emit:\n{emitted}"
+        );
+    }
+
+    #[test]
+    fn emit_uses_canonical_order_without_field_layout() {
+        let conf = builder::new();
+        let medo = mes::Medo {
+            header: mes::MedoHeader {
+                raw: String::new(),
+            },
+            body: mes::MedoBody {
+                pieces: vec![mes::MedoPiece {
+                    charactor: "Alice".into(),
+                    dialogue: "hi".into(),
+                    comments: "note".into(),
+                    timing: "00:00:01.000 --> 00:00:02.000".into(),
+                    sound_position: "L".into(),
+                    sound_note: "bell".into(),
+                    field_order: Vec::new(),
+                }],
+            },
+        };
+        let emitted = medo.to_mes_string(&conf);
+        assert_eq!(
+            emitted,
+            "@Alice\n&00:00:01.000 --> 00:00:02.000\n!L\nhi\n#note\n$bell"
+        );
+    }
+
+    #[test]
     fn crlf_input_normalizes() {
         let text = "meta: crlf\r\n----\r\n@Alice\r\nhello\r\n";
         let medo = mes::parse_mes(text, &builder::new()).unwrap();
