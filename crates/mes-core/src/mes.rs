@@ -9,8 +9,29 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 
-use self::builder::MeSBuilder;
+use self::builder::{MeSBuilder, MedoPieceDecorator};
 use crate::error::{MesError, MesResult};
+
+/// Logical fields of a [`MedoPiece`], used to preserve source attribute/dialogue order on emit.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MedoPieceField {
+    Charactor,
+    Timing,
+    SoundPosition,
+    Dialogue,
+    Comments,
+    SoundNote,
+}
+
+/// Canonical emit order when no parse-time layout was recorded (e.g. JSON-imported Medo).
+const DEFAULT_FIELD_ORDER: &[MedoPieceField] = &[
+    MedoPieceField::Charactor,
+    MedoPieceField::Timing,
+    MedoPieceField::SoundPosition,
+    MedoPieceField::Dialogue,
+    MedoPieceField::Comments,
+    MedoPieceField::SoundNote,
+];
 
 /* MeSのコア処理 */
 //NOTE: メンバを増減するときは、builder.rsのMedoPieceConfigも編集すること
@@ -22,6 +43,9 @@ pub struct MedoPiece {
     pub charactor: String,
     pub sound_position: String,
     pub timing: String,
+    /// Source field order observed while parsing. Skipped in JSON interchange.
+    #[serde(skip)]
+    pub field_order: Vec<MedoPieceField>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -135,38 +159,6 @@ impl RawMedo {
     }
 }
 
-impl MedoBody {
-    fn get_attribute(block: Vec<&str>, prefix: &[char]) -> Vec<String> {
-        block
-            .into_iter()
-            .filter(|x| {
-                prefix.iter().any(|&p| match x.chars().next() {
-                    Some(v) => v == p,
-                    None => false,
-                })
-            })
-            .map(|v| {
-                let mut text = v.to_string();
-                text.remove(0);
-                text
-            })
-            .collect()
-    }
-
-    fn get_dialogue(block: Vec<&str>, ignore_prefix: &[char]) -> Vec<String> {
-        block
-            .into_iter()
-            .filter(|x| {
-                ignore_prefix.iter().all(|&p| match x.chars().next() {
-                    Some(v) => v != p,
-                    None => false,
-                })
-            })
-            .map(|v| v.to_string())
-            .collect()
-    }
-}
-
 fn primary_decorator(chars: &[char]) -> Option<char> {
     chars.first().copied()
 }
@@ -183,42 +175,94 @@ fn push_prefixed_parts(lines: &mut Vec<String>, value: &str, prefix: Option<char
     }
 }
 
+fn push_dialogue_lines(lines: &mut Vec<String>, dialogue: &str) {
+    if dialogue.is_empty() {
+        return;
+    }
+    for dialogue_line in dialogue.split('\n') {
+        lines.push(dialogue_line.to_string());
+    }
+}
+
+fn classify_line(first: char, decorator: &MedoPieceDecorator) -> MedoPieceField {
+    if decorator.charactor.iter().any(|&p| p == first) {
+        MedoPieceField::Charactor
+    } else if decorator.timing.iter().any(|&p| p == first) {
+        MedoPieceField::Timing
+    } else if decorator.sound_position.iter().any(|&p| p == first) {
+        MedoPieceField::SoundPosition
+    } else if decorator.comments.iter().any(|&p| p == first) {
+        MedoPieceField::Comments
+    } else if decorator.sound_note.iter().any(|&p| p == first) {
+        MedoPieceField::SoundNote
+    } else {
+        MedoPieceField::Dialogue
+    }
+}
+
+fn push_unique_field(order: &mut Vec<MedoPieceField>, field: MedoPieceField) {
+    if !order.contains(&field) {
+        order.push(field);
+    }
+}
+
+fn append_csv(target: &mut String, value: &str) {
+    if target.is_empty() {
+        target.push_str(value);
+    } else {
+        target.push(',');
+        target.push_str(value);
+    }
+}
+
+fn append_dialogue(target: &mut String, line: &str) {
+    if target.is_empty() {
+        target.push_str(line);
+    } else {
+        target.push('\n');
+        target.push_str(line);
+    }
+}
+
 fn piece_to_mes_lines(piece: &MedoPiece, conf: &MeSBuilder) -> Vec<String> {
     let decorator = &conf.mes_config.medo_piece_config.decorator;
     let mut lines = Vec::new();
+    let order = if piece.field_order.is_empty() {
+        DEFAULT_FIELD_ORDER
+    } else {
+        piece.field_order.as_slice()
+    };
 
-    push_prefixed_parts(
-        &mut lines,
-        &piece.charactor,
-        primary_decorator(&decorator.charactor),
-    );
-    push_prefixed_parts(
-        &mut lines,
-        &piece.timing,
-        primary_decorator(&decorator.timing),
-    );
-    push_prefixed_parts(
-        &mut lines,
-        &piece.sound_position,
-        primary_decorator(&decorator.sound_position),
-    );
-
-    if !piece.dialogue.is_empty() {
-        for dialogue_line in piece.dialogue.split('\n') {
-            lines.push(dialogue_line.to_string());
+    for field in order {
+        match field {
+            MedoPieceField::Charactor => push_prefixed_parts(
+                &mut lines,
+                &piece.charactor,
+                primary_decorator(&decorator.charactor),
+            ),
+            MedoPieceField::Timing => push_prefixed_parts(
+                &mut lines,
+                &piece.timing,
+                primary_decorator(&decorator.timing),
+            ),
+            MedoPieceField::SoundPosition => push_prefixed_parts(
+                &mut lines,
+                &piece.sound_position,
+                primary_decorator(&decorator.sound_position),
+            ),
+            MedoPieceField::Dialogue => push_dialogue_lines(&mut lines, &piece.dialogue),
+            MedoPieceField::Comments => push_prefixed_parts(
+                &mut lines,
+                &piece.comments,
+                primary_decorator(&decorator.comments),
+            ),
+            MedoPieceField::SoundNote => push_prefixed_parts(
+                &mut lines,
+                &piece.sound_note,
+                primary_decorator(&decorator.sound_note),
+            ),
         }
     }
-
-    push_prefixed_parts(
-        &mut lines,
-        &piece.comments,
-        primary_decorator(&decorator.comments),
-    );
-    push_prefixed_parts(
-        &mut lines,
-        &piece.sound_note,
-        primary_decorator(&decorator.sound_note),
-    );
 
     lines
 }
@@ -346,16 +390,6 @@ pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
         .filter(|block| !block.trim().is_empty())
         .collect();
 
-    //設定を破壊されたくないので一旦コピーしてしまう
-    let decorator = conf.mes_config.medo_piece_config.decorator.clone();
-    let ignore_prefix = [
-        decorator.comments,
-        decorator.sound_note,
-        decorator.charactor,
-        decorator.sound_position,
-        decorator.timing,
-    ]
-    .concat();
     let mpc = &conf.mes_config.medo_piece_config;
 
     let pieces = blocks
@@ -366,24 +400,31 @@ pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
                 .map(|line| line.trim_end())
                 .filter(|line| !line.is_empty())
                 .collect();
-            let dialogue = MedoBody::get_dialogue(lines.clone(), &ignore_prefix).join("\n");
-            let comments = MedoBody::get_attribute(lines.clone(), &mpc.decorator.comments).join(",");
-            let sound_note =
-                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_note).join(",");
-            let charactor =
-                MedoBody::get_attribute(lines.clone(), &mpc.decorator.charactor).join(",");
-            let sound_position =
-                MedoBody::get_attribute(lines.clone(), &mpc.decorator.sound_position).join(",");
-            let timing = MedoBody::get_attribute(lines.clone(), &mpc.decorator.timing).join(",");
 
-            MedoPiece {
-                dialogue,
-                comments,
-                sound_note,
-                charactor,
-                sound_position,
-                timing,
+            let mut piece = MedoPiece::default();
+            let mut field_order = Vec::new();
+
+            for line in lines {
+                let mut chars = line.chars();
+                let Some(first) = chars.next() else {
+                    continue;
+                };
+                let field = classify_line(first, &mpc.decorator);
+                push_unique_field(&mut field_order, field);
+                match field {
+                    MedoPieceField::Dialogue => append_dialogue(&mut piece.dialogue, line),
+                    MedoPieceField::Charactor => append_csv(&mut piece.charactor, chars.as_str()),
+                    MedoPieceField::Timing => append_csv(&mut piece.timing, chars.as_str()),
+                    MedoPieceField::SoundPosition => {
+                        append_csv(&mut piece.sound_position, chars.as_str())
+                    }
+                    MedoPieceField::Comments => append_csv(&mut piece.comments, chars.as_str()),
+                    MedoPieceField::SoundNote => append_csv(&mut piece.sound_note, chars.as_str()),
+                }
             }
+
+            piece.field_order = field_order;
+            piece
         })
         .collect();
 
