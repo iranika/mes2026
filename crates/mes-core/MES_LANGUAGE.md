@@ -121,6 +121,11 @@ MeS はセリフ（ダイアログ）や注釈・メタ情報を含むテキス�
 - 結果はキャラクターごとに集計した `HashMap<String, WordCount>` を JSON 化して返す
 - `count_dialogue_word_to_json_with_conf(text, conf)` は `conf.count_config.ignore_char` に含まれる文字列を事前に削除してから集計する
 
+### MeS 再出力（emit / 正規化）
+- `medo_to_mes` / `emit_mes` はパース結果を MeS テキストへ戻す
+- ブロック内の属性・対話の**出現順**はパース時に記録し、emit で保持する（例: `@` → 対話 → `#` → `$` の並びを維持）
+- 出現順情報がない場合（JSON 由来の `Medo` など）は既定順（キャラ → タイミング → 位置 → 対話 → コメント → サウンド）で出力する
+
 ---
 
 ## 8. 主要設定とデフォルト値
