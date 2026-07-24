@@ -276,6 +276,21 @@ pub fn get_vtt(text: &str, conf: &MeSBuilder) -> MesResult<String> {
     Ok(vtt_list.join("\n\n"))
 }
 
+fn escape_html(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
+}
+
 pub fn get_chat(text: &str, conf: &MeSBuilder) -> MesResult<String> {
     let medo = conf.parse(text)?;
     // キャラクター名から決定的に色を割り当てる（同一キャラは常に同色）
@@ -305,7 +320,9 @@ pub fn get_chat(text: &str, conf: &MeSBuilder) -> MesResult<String> {
                 .clone();
             format!(
                 "<span style=\"color:{}\">{}: {}</span>",
-                color, name, v.dialogue
+                color,
+                escape_html(&name),
+                escape_html(&v.dialogue)
             )
         })
         .collect::<Vec<String>>()

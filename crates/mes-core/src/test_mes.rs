@@ -77,6 +77,21 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn get_chat_escapes_html_in_character_and_dialogue() {
+        let text = "@<img src=x onerror=\"alert('character')\">\n<script>alert('dialogue')</script> & text\n";
+        let chat = mes::get_chat(text, &builder::new()).unwrap();
+
+        assert!(!chat.contains("<img"));
+        assert!(!chat.contains("<script"));
+        assert!(chat.contains(
+            "&lt;img src=x onerror=&quot;alert(&#39;character&#39;)&quot;&gt;"
+        ));
+        assert!(chat.contains(
+            "&lt;script&gt;alert(&#39;dialogue&#39;)&lt;/script&gt; &amp; text"
+        ));
+    }
+
+    #[test]
     fn medo_piece_default_is_empty() {
         let piece = mes::MedoPiece::default();
         assert!(piece.dialogue.is_empty());
