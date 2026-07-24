@@ -13,7 +13,7 @@ required-features = ["cli"]
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:config", "dep:question"]
+cli = ["dep:clap", "dep:question"]
 wasm = ["dep:wasm-bindgen"]
 
 [dependencies]
@@ -22,6 +22,5 @@ serde_json = "1.0.149"
 regex = "1.12.3"
 unicode-segmentation = "1.13.2"
 clap = { version = "4.6.0", features = ["derive"], optional = true }
-config = { version = "0.15.22", optional = true }
 question = { version = "0.2.2", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }

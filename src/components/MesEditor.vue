@@ -3,13 +3,22 @@ import { computed, ref, watch } from "vue";
 import { highlightMes } from "../highlightMes";
 
 const model = defineModel<string>({ required: true });
+const emit = defineEmits<{
+  scrollRatio: [ratio: number];
+}>();
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const backdropRef = ref<HTMLPreElement | null>(null);
+let suppressScrollEmit = false;
 
 const highlighted = computed(() => highlightMes(model.value));
 
-function syncScroll() {
+function scrollMetrics(el: HTMLElement) {
+  const max = el.scrollHeight - el.clientHeight;
+  return { max, ratio: max <= 0 ? 0 : el.scrollTop / max };
+}
+
+function syncBackdrop() {
   const ta = textareaRef.value;
   const bd = backdropRef.value;
   if (!ta || !bd) return;
@@ -17,8 +26,33 @@ function syncScroll() {
   bd.scrollLeft = ta.scrollLeft;
 }
 
+function onTextareaScroll() {
+  syncBackdrop();
+  if (suppressScrollEmit) return;
+  const ta = textareaRef.value;
+  if (!ta) return;
+  emit("scrollRatio", scrollMetrics(ta).ratio);
+}
+
+/** Apply a proportional scroll position from the paired preview pane. */
+function setScrollRatio(ratio: number) {
+  const ta = textareaRef.value;
+  if (!ta) return;
+  const { max } = scrollMetrics(ta);
+  const next = Math.max(0, Math.min(1, ratio)) * max;
+  if (Math.abs(ta.scrollTop - next) < 1) return;
+  suppressScrollEmit = true;
+  ta.scrollTop = next;
+  syncBackdrop();
+  requestAnimationFrame(() => {
+    suppressScrollEmit = false;
+  });
+}
+
+defineExpose({ setScrollRatio });
+
 watch(model, () => {
-  requestAnimationFrame(syncScroll);
+  requestAnimationFrame(syncBackdrop);
 });
 </script>
 
@@ -35,7 +69,7 @@ watch(model, () => {
       class="input"
       spellcheck="false"
       aria-label="MeS source"
-      @scroll="syncScroll"
+      @scroll="onTextareaScroll"
     />
   </div>
 </template>
