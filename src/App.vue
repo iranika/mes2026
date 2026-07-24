@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import MesEditor from "./components/MesEditor.vue";
 import {
   convertMes,
@@ -14,6 +14,7 @@ import {
   saveMesFile,
   saveMesFileAs,
 } from "./fileIo";
+import { sanitizeChatHtml } from "./sanitizeChatHtml";
 
 const SAMPLE = `title: demo
 ----
@@ -32,6 +33,7 @@ Alice「フラット記法の発話です」
 const mesText = ref<string>(SAMPLE);
 const filePath = ref<string | null>(null);
 const result = ref<string>("");
+const sanitizedChatResult = computed(() => sanitizeChatHtml(result.value));
 const error = ref<string>("");
 const mode = ref<PreviewMode>("json");
 const converting = ref(false);
@@ -289,7 +291,7 @@ async function onNormalize() {
           v-else
           ref="previewRef"
           class="output chat"
-          v-html="result"
+          v-html="sanitizedChatResult"
           @scroll="onPreviewScroll"
         ></div>
       </section>
