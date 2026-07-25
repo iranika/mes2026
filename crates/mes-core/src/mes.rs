@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 
 use self::builder::MeSBuilder;
-use crate::error::{MesError, MesResult};
+use crate::error::MesResult;
 
 /* MeSのコア処理 */
 //NOTE: メンバを増減するときは、builder.rsのMedoPieceConfigも編集すること
@@ -63,34 +63,27 @@ impl RawMedo {
 
     pub fn toflat_dialogue_string(text: &str, conf: &builder::MeSBuilder) -> MesResult<String> {
         let flat_dialogue_config = &conf.mes_config.flat_dialogue_config;
-        let name_re = Regex::new(&format!(
-            "{}{}",
-            r"^.*",
-            regex::escape(&flat_dialogue_config.start_str)
-        ))
-        .map_err(MesError::from)?;
         let raw = MULTI_BLANK_RE.replace_all(text, "\n\n").to_string();
+        let start = flat_dialogue_config.start_str.as_str();
+        let end = flat_dialogue_config.end_str.as_str();
+        if start.is_empty() || end.is_empty() {
+            return Ok(raw);
+        }
         let line: Vec<&str> = raw.split('\n').collect();
         let body = line
             .into_iter()
             .map(|x| -> String {
-                match name_re.captures(x) {
-                    Some(val) => {
-                        let Some(matched) = val.get(0) else {
-                            return x.to_string();
-                        };
-                        let name = matched
-                            .as_str()
-                            .replace(flat_dialogue_config.start_str.as_str(), "");
-                        let rep_name = name.clone() + flat_dialogue_config.start_str.as_str();
-                        let dialogue = x
-                            .replace(&rep_name, "")
-                            .replace(flat_dialogue_config.end_str.as_str(), "");
-
-                        format!("@{}\n{}\n", name, &dialogue)
-                    }
-                    None => x.to_string(),
+                let Some((name, dialogue_with_end)) = x.split_once(start) else {
+                    return x.to_string();
+                };
+                let Some(dialogue) = dialogue_with_end.strip_suffix(end) else {
+                    return x.to_string();
+                };
+                if name.is_empty() {
+                    return x.to_string();
                 }
+
+                format!("@{}\n{}\n", name, dialogue)
             })
             .collect::<Vec<String>>()
             .join("\n");
