@@ -1,25 +1,30 @@
-import { escapeHtml } from "./highlightMes.ts";
+const SAFE_CHAT_TAG =
+  /<span style="color:(#[0-9a-fA-F]{6})">|<\/span>/g;
 
-const SAFE_CHAT_SPAN =
-  /&lt;span style=&quot;color:(#[0-9a-fA-F]{6})&quot;&gt;/g;
-
-function decodeHtmlEntitiesOnce(html: string): string {
-  const entities: Record<string, string> = {
-    "&amp;": "&",
-    "&lt;": "<",
-    "&gt;": ">",
-    "&quot;": '"',
-    "&#39;": "'",
-  };
-  return html.replace(/&(amp|lt|gt|quot|#39);/g, (entity) => entities[entity]);
+function escapeHtmlPreservingEntities(text: string): string {
+  return text
+    .replace(/&(?!(?:amp|lt|gt|quot|#39);)/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
- * Escape generated chat HTML, then restore only the fixed span markup emitted
- * by mes-core. This keeps older bundled WASM output safe as well.
+ * Preserve only the raw, fixed span tags emitted by mes-core. Already escaped
+ * entities belong to the dialogue text and must not be promoted back to tags.
  */
 export function sanitizeChatHtml(html: string): string {
-  return escapeHtml(decodeHtmlEntitiesOnce(html))
-    .replace(SAFE_CHAT_SPAN, '<span style="color:$1">')
-    .replace(/&lt;\/span&gt;/g, "</span>");
+  let sanitized = "";
+  let cursor = 0;
+
+  for (const match of html.matchAll(SAFE_CHAT_TAG)) {
+    const index = match.index ?? 0;
+    sanitized += escapeHtmlPreservingEntities(html.slice(cursor, index));
+    sanitized += match[1]
+      ? `<span style="color:${match[1]}">`
+      : "</span>";
+    cursor = index + match[0].length;
+  }
+
+  return sanitized + escapeHtmlPreservingEntities(html.slice(cursor));
 }

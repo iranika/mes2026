@@ -32,6 +32,14 @@ describe("sanitizeChatHtml", () => {
     );
   });
 
+  it("keeps escaped span text literal instead of promoting it to markup", () => {
+    const html =
+      '<span style="color:#e11d48">Alice: &lt;/span&gt; ' +
+      '&lt;span style=&quot;color:#2563eb&quot;&gt;</span>';
+
+    assert.equal(sanitizeChatHtml(html), html);
+  });
+
   it("does not allow arbitrary styles or attributes", () => {
     const html =
       '<span style="color:red" onclick="alert(1)">unsafe</span>' +
