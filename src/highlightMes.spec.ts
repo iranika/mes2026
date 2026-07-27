@@ -19,4 +19,12 @@ describe("highlightMes", () => {
     assert.match(html, /class="tok-delimiter"/);
     assert.doesNotMatch(html, /<script/);
   });
+
+  it("normalizes CRLF before highlighting Windows files", () => {
+    assert.equal(
+      highlightMes("@Alice\r\n----\r\nhello"),
+      '<span class="tok-char"><span class="tok-prefix">@</span>Alice</span>\n' +
+        '<span class="tok-delimiter">----</span>\nhello',
+    );
+  });
 });
