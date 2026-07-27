@@ -26,7 +26,10 @@ const PREFIX_CLASS: Record<string, string> = {
 export function highlightMes(source: string): string {
   if (!source) return "\n";
 
+  // Textarea values use LF internally. Normalize opened Windows files as well
+  // so a trailing CR does not break delimiter detection or overlay alignment.
   return source
+    .replace(/\r\n/g, "\n")
     .split("\n")
     .map((line) => {
       if (line === "----") {
