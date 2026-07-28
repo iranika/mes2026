@@ -14,6 +14,7 @@ import {
   saveMesFile,
   saveMesFileAs,
 } from "./fileIo";
+import { createLatestRequestTracker, type LatestRequest } from "./latestRequest";
 import { sanitizeChatHtml } from "./sanitizeChatHtml";
 
 const SAMPLE = `title: demo
@@ -46,6 +47,7 @@ const syncScrollEnabled = ref(true);
 let syncingScroll = false;
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+const conversionRequests = createLatestRequestTracker();
 
 function scrollRatioOf(el: HTMLElement): number {
   const max = el.scrollHeight - el.clientHeight;
@@ -83,24 +85,37 @@ function onPreviewScroll() {
   });
 }
 
-async function convert() {
+async function convertRequest(request: LatestRequest) {
+  if (!request.isCurrent()) return;
   error.value = "";
   converting.value = true;
   backend.value = getMesBackend();
+  const requestedMode = mode.value;
+  const requestedText = mesText.value;
   try {
-    result.value = await convertMes(mode.value, mesText.value);
+    const converted = await convertMes(requestedMode, requestedText);
+    if (!request.isCurrent()) return;
+    result.value = converted;
   } catch (e) {
+    if (!request.isCurrent()) return;
     error.value = String(e);
     result.value = "";
   } finally {
-    converting.value = false;
+    if (request.isCurrent()) {
+      converting.value = false;
+    }
   }
 }
 
+async function convert() {
+  await convertRequest(conversionRequests.next());
+}
+
 function scheduleConvert() {
+  const request: LatestRequest = conversionRequests.next();
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    void convert();
+    void convertRequest(request);
   }, 250);
 }
 
