@@ -46,6 +46,16 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn flat_dialogue_preserves_nested_brackets() {
+        let medo =
+            mes::parse_mes("Alice「彼は「はい」と答えた」\n", &builder::new()).unwrap();
+
+        assert_eq!(medo.body.pieces.len(), 1);
+        assert_eq!(medo.body.pieces[0].charactor, "Alice");
+        assert_eq!(medo.body.pieces[0].dialogue, "彼は「はい」と答えた");
+    }
+
+    #[test]
     fn empty_blocks_are_filtered() {
         let text = "@A\nhello\n\n\n\n@B\nworld\n";
         let medo = mes::parse_mes(text, &builder::new()).unwrap();
