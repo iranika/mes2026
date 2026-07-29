@@ -5,20 +5,9 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default",
-    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
     "fs:allow-read-text-file",
-    "fs:allow-write-text-file",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        { "path": "$HOME/**" },
-        { "path": "$DESKTOP/**" },
-        { "path": "$DOCUMENT/**" },
-        { "path": "$DOWNLOAD/**" },
-        { "path": "$APPLOCALDATA/**" },
-        { "path": "**" }
-      ]
-    }
+    "fs:allow-write-text-file"
   ]
 }
