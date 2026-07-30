@@ -1,4 +1,5 @@
 import { getMesBackend } from "./mesApi";
+import { deferRevokeObjectUrl } from "./objectUrl";
 
 export type ExportKind = "mes" | "json" | "vtt" | "count" | "chat";
 
@@ -13,7 +14,7 @@ function downloadBrowser(filename: string, contents: string, mime = "text/plain;
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  deferRevokeObjectUrl(url);
 }
 
 function pickBrowserFile(accept: string): Promise<File | null> {
