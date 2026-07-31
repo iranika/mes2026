@@ -7,7 +7,7 @@ MeS（セリフ／注釈スクリプト）の参照実装クレートです。
 いずれも `MesResult`（`Result<T, MesError>`）を返します。
 
 - `parse_mes` / `parse_mes_to_json` — Medo 構造体 / JSON
-- `get_vtt` — WebVTT 風テキスト
+- `get_vtt` — WebVTT テキスト
 - `count_dialogue_word_to_json` — キャラ別文字数
 - `get_chat` — 色付き HTML チャット形式
 - `builder::merge_json_conf` — 部分設定 JSON をデフォルトへディープマージ
