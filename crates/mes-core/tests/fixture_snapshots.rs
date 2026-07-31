@@ -38,6 +38,7 @@ fn sample_mes_vtt_matches_expected() {
     let expected = normalize_newlines(&read_fixture("expected/sample.vtt"));
     let actual =
         normalize_newlines(&mes::get_vtt(&source, &builder::new()).expect("vtt"));
+    assert!(actual.starts_with("WEBVTT\n\n"));
     assert_eq!(actual, expected);
 }
 

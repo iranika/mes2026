@@ -273,7 +273,7 @@ pub fn get_vtt(text: &str, conf: &MeSBuilder) -> MesResult<String> {
         })
         .collect::<Vec<String>>();
 
-    Ok(vtt_list.join("\n\n"))
+    Ok(format!("WEBVTT\n\n{}", vtt_list.join("\n\n")))
 }
 
 fn escape_html(text: &str) -> String {
