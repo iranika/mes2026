@@ -1,3 +1,5 @@
+import { createRetryableAsyncLoader } from "./retryableAsyncLoader";
+
 export type PreviewMode = "json" | "vtt" | "count" | "chat";
 export type MesBackend = "tauri" | "wasm";
 
@@ -10,9 +12,6 @@ const TAURI_COMMANDS: Record<PreviewMode, string> = {
   chat: "mes_to_chat",
 };
 
-let wasmModule: WasmModule | null = null;
-let wasmInit: Promise<WasmModule> | null = null;
-
 function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
@@ -21,18 +20,11 @@ export function getMesBackend(): MesBackend {
   return isTauriRuntime() ? "tauri" : "wasm";
 }
 
-async function loadWasm(): Promise<WasmModule> {
-  if (wasmModule) return wasmModule;
-  if (!wasmInit) {
-    wasmInit = (async () => {
-      const mod = await import("./wasm/mes-core/mes_core.js");
-      await mod.default();
-      wasmModule = mod;
-      return mod;
-    })();
-  }
-  return wasmInit;
-}
+const loadWasm = createRetryableAsyncLoader<WasmModule>(async () => {
+  const mod = await import("./wasm/mes-core/mes_core.js");
+  await mod.default();
+  return mod;
+});
 
 async function convertWithWasm(
   mod: WasmModule,
