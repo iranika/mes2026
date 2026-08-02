@@ -151,6 +151,23 @@ watch(model, () => {
   font-weight: 600;
 }
 
+@media (forced-colors: active) {
+  .backdrop {
+    display: none;
+  }
+
+  .input {
+    color: CanvasText;
+    caret-color: CanvasText;
+    background: Canvas;
+  }
+
+  .input::selection {
+    color: HighlightText;
+    background: Highlight;
+  }
+}
+
 @media (max-width: 900px) {
   .mes-editor {
     min-height: 35vh;
