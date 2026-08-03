@@ -414,22 +414,28 @@ pub struct WordCount {
     word_count: usize,
 }
 
-pub fn count_dialogue_word_to_json_with_conf(mut text: String, conf: &MeSBuilder) -> MesResult<String> {
-    for c in &conf.count_config.ignore_char {
-        text = text.replace(c, "");
-    }
-    count_dialogue_word_to_json(&text, conf)
+pub fn count_dialogue_word_to_json_with_conf(text: String, conf: &MeSBuilder) -> MesResult<String> {
+    let medo = parse_mes(&text, conf)?;
+    count_medo_dialogue_to_json(medo, &conf.count_config.ignore_char)
 }
 
 pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<String> {
     let medo = parse_mes(text, conf)?;
+    count_medo_dialogue_to_json(medo, &[])
+}
+
+fn count_medo_dialogue_to_json(medo: Medo, ignore_char: &[String]) -> MesResult<String> {
     //キャラクター毎にワード数を集計する
     let mut word_counter: HashMap<String, WordCount> = HashMap::new();
     medo.body.pieces.into_iter().for_each(|piece: MedoPiece| {
+        let dialogue = ignore_char
+            .iter()
+            .fold(piece.dialogue, |text, ignored| text.replace(ignored, ""));
+        let dialogue_count = dialogue.graphemes(true).count();
         match word_counter.get_mut(&piece.charactor) {
             Some(x) => {
                 //既存のきゃらの集計追加
-                x.word_count += piece.dialogue.graphemes(true).count();
+                x.word_count += dialogue_count;
             }
             None => {
                 //新規キャラの集計追加
@@ -437,7 +443,7 @@ pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<S
                     piece.charactor.clone(),
                     WordCount {
                         charactor: piece.charactor.clone(),
-                        word_count: piece.dialogue.graphemes(true).count(),
+                        word_count: dialogue_count,
                     },
                 );
             }
