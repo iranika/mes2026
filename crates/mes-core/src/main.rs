@@ -70,18 +70,27 @@ fn main() -> ExitCode {
 
 fn run() -> MesResult<()> {
     let cli = Cli::parse();
-    let mes_conf = load_config(&cli.conf)?;
 
     match cli.command {
-        Commands::Chat { path } => do_chat(path, &mes_conf),
-        Commands::Parse { path } => do_parse(path, &mes_conf),
-        Commands::Vtt { path } => do_vtt(path, &mes_conf),
-        Commands::Emit { path } => do_emit(path, &mes_conf),
-        Commands::Count { path } => do_count(path, &mes_conf),
-        Commands::Config { conf } => match conf {
-            ConfigCommand::Create => do_config_create(cli.conf),
-            ConfigCommand::Show => do_config_show(&mes_conf),
-        },
+        Commands::Config {
+            conf: ConfigCommand::Create,
+        } => do_config_create(cli.conf),
+        command => {
+            let mes_conf = load_config(&cli.conf)?;
+            match command {
+                Commands::Chat { path } => do_chat(path, &mes_conf),
+                Commands::Parse { path } => do_parse(path, &mes_conf),
+                Commands::Vtt { path } => do_vtt(path, &mes_conf),
+                Commands::Emit { path } => do_emit(path, &mes_conf),
+                Commands::Count { path } => do_count(path, &mes_conf),
+                Commands::Config {
+                    conf: ConfigCommand::Show,
+                } => do_config_show(&mes_conf),
+                Commands::Config {
+                    conf: ConfigCommand::Create,
+                } => unreachable!("config create is handled before loading config"),
+            }
+        }
     }
 }
 
