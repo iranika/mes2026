@@ -1,7 +1,8 @@
 //! CLI exit-code / error-path smoke tests for the `mes-core` binary.
 
 use std::fs;
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 fn bin() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mes-core"))
@@ -138,4 +139,42 @@ fn valid_partial_config_is_applied() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Alice"), "stdout={stdout}");
     assert!(stdout.contains("title: custom"), "stdout={stdout}");
+}
+
+#[test]
+fn config_create_can_replace_invalid_config() {
+    let conf_path = tmp_path("invalid-to-recreate.json");
+    fs::write(&conf_path, "{ not valid json").expect("write invalid config");
+
+    let mut child = bin()
+        .args([
+            "-c",
+            conf_path.to_str().unwrap(),
+            "config",
+            "create",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mes-core");
+    child
+        .stdin
+        .take()
+        .expect("child stdin")
+        .write_all(b"y\n")
+        .expect("confirm overwrite");
+
+    let output = child.wait_with_output().expect("wait for mes-core");
+    assert!(
+        output.status.success(),
+        "config create should replace invalid config; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let recreated = fs::read_to_string(&conf_path).expect("read recreated config");
+    let parsed: serde_json::Value = serde_json::from_str(&recreated).expect("valid config JSON");
+    let _ = fs::remove_file(&conf_path);
+
+    assert_eq!(parsed["mes_config"]["header_delimiter"], "----\n");
 }
