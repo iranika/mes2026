@@ -7,6 +7,7 @@ use crate::mes::Medo;
 
 /* MeS Config関連のコード */
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct MeSConfig {
     pub name: String,
     /// Default is "----\n"
@@ -16,6 +17,7 @@ pub struct MeSConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct MedoPieceConfig {
     pub block_delimiter: String,
     //以下、アトリビュートのメンバ
@@ -32,6 +34,7 @@ impl Default for MedoPieceConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct MedoPieceDecorator {
     pub dialogue: Vec<char>,
     pub comments: Vec<char>,
@@ -56,20 +59,24 @@ impl Default for MedoPieceDecorator {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct FlatDialogueConfig {
     pub start_str: String,
     pub end_str: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct CountConfig {
     pub ignore_char: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ChatConfig {}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct MeSBuilder {
     pub mes_config: MeSConfig,
     pub count_config: CountConfig,
