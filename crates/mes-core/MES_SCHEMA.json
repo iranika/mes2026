@@ -29,7 +29,14 @@
               "sound_position": { "type": "string" },
               "timing": { "type": "string" }
             },
-            "required": ["dialogue"],
+            "required": [
+              "dialogue",
+              "comments",
+              "sound_note",
+              "charactor",
+              "sound_position",
+              "timing"
+            ],
             "additionalProperties": false
           }
         }
