@@ -358,8 +358,17 @@ pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
 
 pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
     let tmp = _text.replace("\r\n", "\n");
-    let blocks: Vec<&str> = tmp
-        .split(conf.mes_config.medo_piece_config.block_delimiter.as_str())
+    let block_delimiter = conf.mes_config.medo_piece_config.block_delimiter.as_str();
+    let normalized = if block_delimiter == "\n\n" {
+        tmp.split('\n')
+            .map(|line| if line.trim().is_empty() { "" } else { line })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        tmp
+    };
+    let blocks: Vec<&str> = normalized
+        .split(block_delimiter)
         .filter(|block| !block.trim().is_empty())
         .collect();
 
