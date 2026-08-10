@@ -257,6 +257,10 @@ pub fn get_default_config_json() -> MesResult<String> {
     Ok(serde_json::to_string(&builder::new())?)
 }
 
+fn escape_vtt_cue_text(text: &str) -> String {
+    text.replace('&', "&amp;").replace('<', "&lt;")
+}
+
 pub fn get_vtt(text: &str, conf: &MeSBuilder) -> MesResult<String> {
     let medo = conf.parse(text)?;
     let vtt_list = medo
@@ -269,7 +273,7 @@ pub fn get_vtt(text: &str, conf: &MeSBuilder) -> MesResult<String> {
             } else {
                 "00:00:00.000 --> 00:00:00.000".to_string()
             };
-            format!("{}\n{}", timing, v.dialogue)
+            format!("{}\n{}", timing, escape_vtt_cue_text(&v.dialogue))
         })
         .collect::<Vec<String>>();
 
