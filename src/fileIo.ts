@@ -1,4 +1,5 @@
 import { getMesBackend } from "./mesApi";
+import { createChatExportDocument } from "./chatExport";
 
 export type ExportKind = "mes" | "json" | "vtt" | "count" | "chat";
 
@@ -132,6 +133,8 @@ export async function exportPreview(
   contents: string,
 ): Promise<boolean> {
   const meta = EXPORT_META[kind];
+  const exportContents =
+    kind === "chat" ? createChatExportDocument(contents) : contents;
   if (isTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
     const { writeTextFile } = await import("@tauri-apps/plugin-fs");
@@ -140,10 +143,10 @@ export async function exportPreview(
       defaultPath: meta.filename,
     });
     if (!path) return false;
-    await writeTextFile(path, contents);
+    await writeTextFile(path, exportContents);
     return true;
   }
 
-  downloadBrowser(meta.filename, contents, meta.mime);
+  downloadBrowser(meta.filename, exportContents, meta.mime);
   return true;
 }
