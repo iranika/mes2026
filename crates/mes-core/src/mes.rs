@@ -1,7 +1,7 @@
 pub mod builder;
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     sync::LazyLock,
 };
 
@@ -424,7 +424,7 @@ pub fn count_dialogue_word_to_json_with_conf(mut text: String, conf: &MeSBuilder
 pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<String> {
     let medo = parse_mes(text, conf)?;
     //キャラクター毎にワード数を集計する
-    let mut word_counter: HashMap<String, WordCount> = HashMap::new();
+    let mut word_counter: BTreeMap<String, WordCount> = BTreeMap::new();
     medo.body.pieces.into_iter().for_each(|piece: MedoPiece| {
         match word_counter.get_mut(&piece.charactor) {
             Some(x) => {
