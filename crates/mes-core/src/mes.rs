@@ -343,8 +343,8 @@ pub fn parse_mes(text: &str, conf: &MeSBuilder) -> MesResult<Medo> {
 
 pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
     let tmp = text.replace("\r\n", "\n");
-    let delimiter = conf.mes_config.header_delimiter.as_str();
-    match tmp.split_once(delimiter) {
+    let delimiter = conf.mes_config.header_delimiter.replace("\r\n", "\n");
+    match tmp.split_once(&delimiter) {
         Some((header, body)) => RawMedo {
             header: header.to_string(),
             body: body.to_string(),
