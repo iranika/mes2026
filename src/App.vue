@@ -210,7 +210,7 @@ async function onNormalize() {
         <button type="button" class="ghost" @click="resetSample">サンプルに戻す</button>
         <span v-if="filePath" class="path" :title="filePath">{{ filePath }}</span>
       </div>
-      <p v-if="status" class="status">{{ status }}</p>
+      <p v-if="status" class="status" role="status">{{ status }}</p>
     </header>
 
     <div class="editor-row">
@@ -280,7 +280,7 @@ async function onNormalize() {
             </button>
           </div>
         </div>
-        <div v-if="error" class="error">{{ error }}</div>
+        <div v-if="error" class="error" role="alert">{{ error }}</div>
         <pre
           v-if="mode !== 'chat'"
           ref="previewRef"

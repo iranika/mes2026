@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { escapeHtml, highlightMes } from "./highlightMes.ts";
 
 describe("highlightMes", () => {
@@ -26,5 +27,14 @@ describe("highlightMes", () => {
       '<span class="tok-char"><span class="tok-prefix">@</span>Alice</span>\n' +
         '<span class="tok-delimiter">----</span>\nhello',
     );
+  });
+});
+
+describe("App accessibility", () => {
+  it("announces status updates and errors to assistive technology", () => {
+    const source = readFileSync(new URL("./App.vue", import.meta.url), "utf8");
+
+    assert.match(source, /<p[^>]*v-if="status"[^>]*role="status"[^>]*>/);
+    assert.match(source, /<div[^>]*v-if="error"[^>]*role="alert"[^>]*>/);
   });
 });
