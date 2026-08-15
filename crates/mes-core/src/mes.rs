@@ -304,6 +304,7 @@ pub fn get_chat(text: &str, conf: &MeSBuilder) -> MesResult<String> {
         .body
         .pieces
         .into_iter()
+        .filter(|v| !v.dialogue.is_empty())
         .map(|v| {
             let name = if v.charactor.is_empty() {
                 "???".to_string()
