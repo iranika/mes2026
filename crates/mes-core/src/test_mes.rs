@@ -92,6 +92,17 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn get_chat_skips_blocks_without_dialogue() {
+        let text = "# scene transition\n\n@Alice\nhello\n";
+        let chat = mes::get_chat(text, &builder::new()).unwrap();
+
+        assert_eq!(
+            chat,
+            "<span style=\"color:#e11d48\">Alice: hello</span>"
+        );
+    }
+
+    #[test]
     fn medo_piece_default_is_empty() {
         let piece = mes::MedoPiece::default();
         assert!(piece.dialogue.is_empty());
