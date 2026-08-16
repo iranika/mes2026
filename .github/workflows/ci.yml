@@ -22,7 +22,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: cargo install wasm-pack --locked --version 0.15.0
       - name: Rebuild WASM package
         run: |
           wasm-pack build crates/mes-core --target web --out-dir ../../src/wasm/mes-core \
