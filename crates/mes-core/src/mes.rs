@@ -414,6 +414,13 @@ pub struct WordCount {
     word_count: usize,
 }
 
+fn count_dialogue_graphemes(dialogue: &str) -> usize {
+    dialogue
+        .graphemes(true)
+        .filter(|grapheme| !matches!(*grapheme, "\n" | "\r\n" | "\r"))
+        .count()
+}
+
 pub fn count_dialogue_word_to_json_with_conf(mut text: String, conf: &MeSBuilder) -> MesResult<String> {
     for c in &conf.count_config.ignore_char {
         text = text.replace(c, "");
@@ -426,10 +433,11 @@ pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<S
     //キャラクター毎にワード数を集計する
     let mut word_counter: HashMap<String, WordCount> = HashMap::new();
     medo.body.pieces.into_iter().for_each(|piece: MedoPiece| {
+        let dialogue_count = count_dialogue_graphemes(&piece.dialogue);
         match word_counter.get_mut(&piece.charactor) {
             Some(x) => {
                 //既存のきゃらの集計追加
-                x.word_count += piece.dialogue.graphemes(true).count();
+                x.word_count += dialogue_count;
             }
             None => {
                 //新規キャラの集計追加
@@ -437,7 +445,7 @@ pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<S
                     piece.charactor.clone(),
                     WordCount {
                         charactor: piece.charactor.clone(),
-                        word_count: piece.dialogue.graphemes(true).count(),
+                        word_count: dialogue_count,
                     },
                 );
             }
