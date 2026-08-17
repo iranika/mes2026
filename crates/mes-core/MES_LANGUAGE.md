@@ -118,6 +118,7 @@ MeS はセリフ（ダイアログ）や注釈・メタ情報を含むテキス�
 
 ### ワードカウント
 - `count_dialogue_word_to_json(text, conf)` は `unicode-segmentation` の `graphemes(true)` を使って文字（グラフェム）数をカウント
+- 複数行の台詞を区切る改行コードは、文字数に含めない
 - 結果はキャラクターごとに集計した `HashMap<String, WordCount>` を JSON 化して返す
 - `count_dialogue_word_to_json_with_conf(text, conf)` は `conf.count_config.ignore_char` に含まれる文字列を事前に削除してから集計する
 
