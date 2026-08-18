@@ -149,6 +149,19 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn lone_cr_input_normalizes() {
+        let text = "meta: cr\r----\r@Alice\rhello\r\r@Bob\rworld\r";
+        let medo = mes::parse_mes(text, &builder::new()).unwrap();
+
+        assert_eq!(medo.header.raw.trim(), "meta: cr");
+        assert_eq!(medo.body.pieces.len(), 2);
+        assert_eq!(medo.body.pieces[0].charactor, "Alice");
+        assert_eq!(medo.body.pieces[0].dialogue, "hello");
+        assert_eq!(medo.body.pieces[1].charactor, "Bob");
+        assert_eq!(medo.body.pieces[1].dialogue, "world");
+    }
+
+    #[test]
     fn missing_header_delimiter_treats_all_as_body() {
         let text = "@Solo\nline\n";
         let medo = mes::parse_mes(text, &builder::new()).unwrap();
