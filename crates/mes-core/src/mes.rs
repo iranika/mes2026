@@ -49,6 +49,10 @@ pub struct RawMedo {
 static MULTI_BLANK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\n{3,}").expect("valid static regex"));
 
+fn normalize_newlines(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\r', "\n")
+}
+
 impl RawMedo {
     pub fn doflat(&mut self, conf: &builder::MeSBuilder) -> MesResult<RawMedo> {
         //NOTE:　フラットレイヤー
@@ -342,7 +346,7 @@ pub fn parse_mes(text: &str, conf: &MeSBuilder) -> MesResult<Medo> {
 }
 
 pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
-    let tmp = text.replace("\r\n", "\n");
+    let tmp = normalize_newlines(text);
     let delimiter = conf.mes_config.header_delimiter.as_str();
     match tmp.split_once(delimiter) {
         Some((header, body)) => RawMedo {
@@ -357,7 +361,7 @@ pub fn parse_raw_medo(text: &str, conf: &MeSBuilder) -> RawMedo {
 }
 
 pub fn parse_medo_body(_text: &str, conf: &builder::MeSBuilder) -> MedoBody {
-    let tmp = _text.replace("\r\n", "\n");
+    let tmp = normalize_newlines(_text);
     let blocks: Vec<&str> = tmp
         .split(conf.mes_config.medo_piece_config.block_delimiter.as_str())
         .filter(|block| !block.trim().is_empty())
