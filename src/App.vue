@@ -15,6 +15,7 @@ import {
   saveMesFileAs,
 } from "./fileIo";
 import { sanitizeChatHtml } from "./sanitizeChatHtml";
+import { canDiscardChanges } from "./unsavedChanges";
 
 const SAMPLE = `title: demo
 ----
@@ -31,6 +32,7 @@ Alice「フラット記法の発話です」
 `;
 
 const mesText = ref<string>(SAMPLE);
+const savedMesText = ref<string>(SAMPLE);
 const filePath = ref<string | null>(null);
 const result = ref<string>("");
 const sanitizedChatResult = computed(() => sanitizeChatHtml(result.value));
@@ -106,19 +108,31 @@ function scheduleConvert() {
 
 watch([mesText, mode], scheduleConvert, { immediate: true });
 
+function confirmDiscardUnsavedChanges(): boolean {
+  return canDiscardChanges(
+    mesText.value,
+    savedMesText.value,
+    () => window.confirm("未保存の変更を破棄しますか？"),
+  );
+}
+
 function resetSample() {
+  if (!confirmDiscardUnsavedChanges()) return;
   mesText.value = SAMPLE;
+  savedMesText.value = SAMPLE;
   filePath.value = null;
   status.value = "サンプルを読み込みました";
 }
 
 async function onOpen() {
+  if (!confirmDiscardUnsavedChanges()) return;
   ioBusy.value = true;
   status.value = "";
   try {
     const opened = await openMesFile();
     if (!opened) return;
     mesText.value = opened.contents;
+    savedMesText.value = opened.contents;
     filePath.value = opened.path;
     status.value = opened.path ? `開きました: ${opened.path}` : "ファイルを開きました";
   } catch (e) {
@@ -132,8 +146,10 @@ async function onSave() {
   ioBusy.value = true;
   status.value = "";
   try {
-    const path = await saveMesFile(mesText.value, filePath.value);
+    const contents = mesText.value;
+    const path = await saveMesFile(contents, filePath.value);
     if (!path) return;
+    savedMesText.value = contents;
     filePath.value = path;
     status.value = `保存しました: ${path}`;
   } catch (e) {
@@ -147,8 +163,10 @@ async function onSaveAs() {
   ioBusy.value = true;
   status.value = "";
   try {
-    const path = await saveMesFileAs(mesText.value);
+    const contents = mesText.value;
+    const path = await saveMesFileAs(contents);
     if (!path) return;
+    savedMesText.value = contents;
     filePath.value = path;
     status.value = `保存しました: ${path}`;
   } catch (e) {
