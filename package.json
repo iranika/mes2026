@@ -8,7 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:highlight": "node --experimental-strip-types --test src/highlightMes.spec.ts src/sanitizeChatHtml.spec.ts",
+    "test:highlight": "node --experimental-strip-types --test src/highlightMes.spec.ts src/previewTabs.spec.ts src/sanitizeChatHtml.spec.ts",
     "build:wasm": "wasm-pack build crates/mes-core --target web --out-dir ../../src/wasm/mes-core -- --no-default-features --features wasm && rm -f src/wasm/mes-core/.gitignore"
   },
   "dependencies": {
