@@ -14,6 +14,7 @@ import {
   saveMesFile,
   saveMesFileAs,
 } from "./fileIo";
+import { nextPreviewMode } from "./previewTabs";
 import { sanitizeChatHtml } from "./sanitizeChatHtml";
 
 const SAMPLE = `title: demo
@@ -80,6 +81,16 @@ function onPreviewScroll() {
   editor.setScrollRatio(scrollRatioOf(preview));
   requestAnimationFrame(() => {
     syncingScroll = false;
+  });
+}
+
+function onPreviewTabKeydown(event: KeyboardEvent) {
+  const nextMode = nextPreviewMode(mode.value, event.key);
+  if (!nextMode) return;
+  event.preventDefault();
+  mode.value = nextMode;
+  requestAnimationFrame(() => {
+    document.getElementById(`preview-tab-${nextMode}`)?.focus();
   });
 }
 
@@ -241,40 +252,56 @@ async function onNormalize() {
       <section class="pane preview">
         <div class="pane-head">
           <h2>プレビュー</h2>
-          <div class="tabs" role="tablist">
+          <div class="tabs" role="tablist" aria-label="プレビュー形式">
             <button
+              id="preview-tab-json"
               type="button"
               role="tab"
+              aria-controls="preview-panel"
               :aria-selected="mode === 'json'"
+              :tabindex="mode === 'json' ? 0 : -1"
               :class="{ active: mode === 'json' }"
               @click="mode = 'json'"
+              @keydown="onPreviewTabKeydown"
             >
               JSON
             </button>
             <button
+              id="preview-tab-vtt"
               type="button"
               role="tab"
+              aria-controls="preview-panel"
               :aria-selected="mode === 'vtt'"
+              :tabindex="mode === 'vtt' ? 0 : -1"
               :class="{ active: mode === 'vtt' }"
               @click="mode = 'vtt'"
+              @keydown="onPreviewTabKeydown"
             >
               VTT
             </button>
             <button
+              id="preview-tab-count"
               type="button"
               role="tab"
+              aria-controls="preview-panel"
               :aria-selected="mode === 'count'"
+              :tabindex="mode === 'count' ? 0 : -1"
               :class="{ active: mode === 'count' }"
               @click="mode = 'count'"
+              @keydown="onPreviewTabKeydown"
             >
               Count
             </button>
             <button
+              id="preview-tab-chat"
               type="button"
               role="tab"
+              aria-controls="preview-panel"
               :aria-selected="mode === 'chat'"
+              :tabindex="mode === 'chat' ? 0 : -1"
               :class="{ active: mode === 'chat' }"
               @click="mode = 'chat'"
+              @keydown="onPreviewTabKeydown"
             >
               Chat
             </button>
@@ -283,14 +310,22 @@ async function onNormalize() {
         <div v-if="error" class="error">{{ error }}</div>
         <pre
           v-if="mode !== 'chat'"
+          id="preview-panel"
           ref="previewRef"
           class="output"
+          role="tabpanel"
+          :aria-labelledby="`preview-tab-${mode}`"
+          tabindex="0"
           @scroll="onPreviewScroll"
         >{{ result }}</pre>
         <div
           v-else
+          id="preview-panel"
           ref="previewRef"
           class="output chat"
+          role="tabpanel"
+          :aria-labelledby="`preview-tab-${mode}`"
+          tabindex="0"
           v-html="sanitizedChatResult"
           @scroll="onPreviewScroll"
         ></div>
