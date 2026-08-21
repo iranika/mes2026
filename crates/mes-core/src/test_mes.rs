@@ -62,6 +62,15 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn get_vtt_skips_pieces_without_dialogue() {
+        let text = "# production note\n$ chime\n\n@Alice\n&00:00:01.000 --> 00:00:02.000\nhello\n";
+        let vtt = mes::get_vtt(text, &builder::new()).unwrap();
+
+        assert_eq!(vtt, "00:00:01.000 --> 00:00:02.000\nhello");
+        assert!(!vtt.contains("00:00:00.000 --> 00:00:00.000"));
+    }
+
+    #[test]
     fn word_count_aggregates_by_character() {
         let json = mes::count_dialogue_word_to_json(SAMPLE, &builder::new()).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();

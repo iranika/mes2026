@@ -263,6 +263,7 @@ pub fn get_vtt(text: &str, conf: &MeSBuilder) -> MesResult<String> {
         .body
         .pieces
         .into_iter()
+        .filter(|v| !v.dialogue.is_empty())
         .map(|v| -> String {
             let timing = if !v.timing.is_empty() {
                 v.timing
