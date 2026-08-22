@@ -425,7 +425,12 @@ pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<S
     let medo = parse_mes(text, conf)?;
     //キャラクター毎にワード数を集計する
     let mut word_counter: HashMap<String, WordCount> = HashMap::new();
-    medo.body.pieces.into_iter().for_each(|piece: MedoPiece| {
+    for piece in medo
+        .body
+        .pieces
+        .into_iter()
+        .filter(|piece| !piece.dialogue.is_empty())
+    {
         match word_counter.get_mut(&piece.charactor) {
             Some(x) => {
                 //既存のきゃらの集計追加
@@ -442,6 +447,6 @@ pub fn count_dialogue_word_to_json(text: &str, conf: &MeSBuilder) -> MesResult<S
                 );
             }
         }
-    });
+    }
     Ok(serde_json::to_string_pretty(&word_counter)?)
 }

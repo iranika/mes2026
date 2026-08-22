@@ -70,6 +70,17 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn word_count_skips_blocks_without_dialogue() {
+        let text = "# production note\n$ chime\n\n@Alice\nhello\n";
+        let json = mes::count_dialogue_word_to_json(text, &builder::new()).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert!(parsed.get("").is_none());
+        assert_eq!(parsed["Alice"]["word_count"], 5);
+        assert_eq!(parsed.as_object().unwrap().len(), 1);
+    }
+
+    #[test]
     fn get_chat_assigns_stable_colors() {
         let chat = mes::get_chat(SAMPLE, &builder::new()).unwrap();
         assert!(chat.contains("Alice:"));
