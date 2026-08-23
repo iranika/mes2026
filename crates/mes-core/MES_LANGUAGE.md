@@ -31,7 +31,7 @@ MeS はセリフ（ダイアログ）や注釈・メタ情報を含むテキス�
 
 ## 3. 本文（MedoPiece）の分割ルール
 
-- 本文は `medo_piece_config.block_delimiter`（デフォルト `"\n\n"`）でブロックに分割
+- 本文と設定した `medo_piece_config.block_delimiter` の CRLF を LF へ正規化し、ブロックに分割（デフォルト `"\n\n"`）
 - 各ブロックは1つの `MedoPiece` に変換される
 - ブロック内の行はさらに分類:
   - 属性行: 先頭が特定のプレフィックス文字で始まる行
