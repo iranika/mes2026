@@ -149,6 +149,22 @@ Alice「フラット発話です」
     }
 
     #[test]
+    fn crlf_block_delimiter_matches_normalized_input() {
+        let conf = builder::merge_json_conf(
+            r#"{"mes_config":{"medo_piece_config":{"block_delimiter":"\r\n\r\n"}}}"#,
+        )
+        .unwrap();
+        let text = "@Alice\r\nhello\r\n\r\n@Bob\r\nworld\r\n";
+        let medo = mes::parse_mes(text, &conf).unwrap();
+
+        assert_eq!(medo.body.pieces.len(), 2);
+        assert_eq!(medo.body.pieces[0].charactor, "Alice");
+        assert_eq!(medo.body.pieces[0].dialogue, "hello");
+        assert_eq!(medo.body.pieces[1].charactor, "Bob");
+        assert_eq!(medo.body.pieces[1].dialogue, "world");
+    }
+
+    #[test]
     fn missing_header_delimiter_treats_all_as_body() {
         let text = "@Solo\nline\n";
         let medo = mes::parse_mes(text, &builder::new()).unwrap();
